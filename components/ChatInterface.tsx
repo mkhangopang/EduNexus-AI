@@ -63,40 +63,39 @@ export const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <Bot className="w-5 h-5 text-primary-600" />
-            Pedagogical Assistant
+    <div className="flex flex-col h-full bg-white md:rounded-xl shadow-sm md:border border-slate-200 overflow-hidden relative">
+      <div className="p-3 md:p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
+        <div className="min-w-0">
+          <h2 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <Bot className="w-4 h-4 md:w-5 md:h-5 text-primary-600 shrink-0" />
+            <span className="truncate">Pedagogical Assistant</span>
           </h2>
-          <p className="text-xs text-slate-500">Powered by Gemini 2.5 Flash • Context: World History Unit 3.pdf</p>
+          <p className="text-xs text-slate-500 truncate max-w-[200px] md:max-w-none">Powered by Gemini 2.5 Flash • Context: World History Unit 3.pdf</p>
         </div>
-        <div className="flex gap-2">
-            <button className="text-xs px-3 py-1 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">Clear Chat</button>
-            <button className="text-xs px-3 py-1 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">Export</button>
+        <div className="flex gap-2 shrink-0 ml-2">
+            <button className="text-xs px-2 py-1 md:px-3 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">Clear</button>
+            <button className="text-xs px-2 py-1 md:px-3 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors hidden sm:block">Export</button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4 md:space-y-6 bg-slate-50 scroll-smooth" ref={scrollRef}>
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-start gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex items-start gap-3 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
               msg.role === 'user' ? 'bg-primary-600' : 'bg-emerald-500'
             }`}>
-              {msg.role === 'user' ? <UserIcon className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
+              {msg.role === 'user' ? <UserIcon className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />}
             </div>
             
-            <div className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${
+            <div className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 shadow-sm ${
               msg.role === 'user' 
                 ? 'bg-primary-600 text-white rounded-tr-none' 
                 : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
             }`}>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                 {/* Basic line break handling for demo. In prod use ReactMarkdown */}
+              <div className="prose prose-sm max-w-none dark:prose-invert leading-relaxed text-sm md:text-base">
                  {msg.content.split('\n').map((line, i) => (
                      <p key={i} className="mb-1 last:mb-0">{line}</p>
                  ))}
@@ -105,9 +104,9 @@ export const ChatInterface: React.FC = () => {
           </div>
         ))}
         {isLoading && (
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-               <Loader2 className="w-5 h-5 text-white animate-spin" />
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+               <Loader2 className="w-4 h-4 md:w-5 md:h-5 text-white animate-spin" />
             </div>
             <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm">
               <p className="text-sm text-slate-500 animate-pulse">Thinking...</p>
@@ -116,9 +115,9 @@ export const ChatInterface: React.FC = () => {
         )}
       </div>
 
-      <div className="p-4 bg-white border-t border-slate-100">
+      <div className="p-2 md:p-4 bg-white border-t border-slate-100 shrink-0 z-10">
         <div className="relative flex items-end gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-400 transition-all">
-          <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+          <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors shrink-0">
             <Paperclip className="w-5 h-5" />
           </button>
           <textarea
@@ -126,14 +125,14 @@ export const ChatInterface: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask about your lesson plan..."
-            className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 py-2 text-sm"
+            className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-24 md:max-h-32 py-2 text-sm"
             rows={1}
             style={{ minHeight: '40px' }}
           />
           <button 
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className={`p-2 rounded-lg transition-all ${
+            className={`p-2 rounded-lg transition-all shrink-0 ${
                 input.trim() && !isLoading 
                 ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md' 
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -142,8 +141,8 @@ export const ChatInterface: React.FC = () => {
             <Send className="w-5 h-5" />
           </button>
         </div>
-        <div className="mt-2 text-center">
-            <p className="text-[10px] text-slate-400">AI can make mistakes. Please check important info.</p>
+        <div className="mt-1 md:mt-2 text-center hidden md:block landscape:hidden">
+            <p className="text-[10px] text-slate-400 truncate">AI can make mistakes. Please check important info.</p>
         </div>
       </div>
     </div>

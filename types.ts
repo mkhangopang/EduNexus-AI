@@ -1,3 +1,4 @@
+
 export enum UserRole {
   APP_ADMIN = 'APP_ADMIN',
   ENTERPRISE_ADMIN = 'ENTERPRISE_ADMIN',
@@ -12,6 +13,7 @@ export enum AppView {
   CHAT = 'CHAT',
   SETTINGS = 'SETTINGS',
   BRAIN_CONTROL = 'BRAIN_CONTROL', // Admin Only
+  AI_TRAINING = 'AI_TRAINING', // Admin Only - New
   TEAM_MANAGEMENT = 'TEAM_MANAGEMENT' // Enterprise Only
 }
 
@@ -47,6 +49,7 @@ export interface AITool {
   description: string;
   icon: string;
   promptTemplate: string;
+  minPlan: 'free' | 'pro' | 'enterprise';
 }
 
 export interface Collaborator {

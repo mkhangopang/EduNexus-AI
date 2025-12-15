@@ -1,6 +1,6 @@
 import React from 'react';
-import { BookOpen, ListChecks, Target, Network, Layers, FileOutput } from 'lucide-react';
-import { AITool } from '../types';
+import { BookOpen, ListChecks, Target, Network, Layers, FileOutput, Lock, Infinity } from 'lucide-react';
+import { AITool, User } from '../types';
 
 const tools: AITool[] = [
     { 
@@ -8,42 +8,48 @@ const tools: AITool[] = [
         name: 'Rubric Generator', 
         description: "Create Bloom's aligned rubrics in seconds.", 
         icon: 'ListChecks', 
-        promptTemplate: 'Generate a Type 1: Rubric for the following assignment/standard: ' 
+        promptTemplate: 'Generate a Type 1: Rubric for the following assignment/standard: ',
+        minPlan: 'free'
     },
     { 
         id: '2', 
         name: 'Lesson Planner', 
         description: "Draft 5E or UbD lesson plans instantly.", 
         icon: 'BookOpen', 
-        promptTemplate: 'Create a Type 3: Lesson Plan (specify 5E or UbD) for: ' 
+        promptTemplate: 'Create a Type 3: Lesson Plan (specify 5E or UbD) for: ',
+        minPlan: 'free'
     },
     { 
         id: '3', 
         name: 'Assessment Builder', 
         description: "Generate MCQs and essay prompts.", 
         icon: 'Target', 
-        promptTemplate: 'Create a Type 2: Assessment (5 MCQs) and one Type 4: Short Response for: ' 
+        promptTemplate: 'Create a Type 2: Assessment (5 MCQs) and one Type 4: Short Response for: ',
+        minPlan: 'free'
     },
     { 
         id: '4', 
         name: 'SLO Auto-Tagger', 
         description: "Identify learning objectives automatically.", 
         icon: 'Target', 
-        promptTemplate: 'Extract all Student Learning Objectives (SLOs) and tag with Bloom\'s/DOK levels from: ' 
+        promptTemplate: 'Extract all Student Learning Objectives (SLOs) and tag with Bloom\'s/DOK levels from: ',
+        minPlan: 'pro'
     },
     { 
         id: '5', 
         name: 'Differentiation Wizard', 
         description: "Scaffold content for diverse learners.", 
         icon: 'Layers', 
-        promptTemplate: 'Apply Type 5: Differentiation (3-Tier System) to this content: ' 
+        promptTemplate: 'Apply Type 5: Differentiation (3-Tier System) to this content: ',
+        minPlan: 'pro'
     },
     { 
         id: '6', 
         name: 'Standards Mapper', 
         description: "Align content to Common Core/NGSS.", 
         icon: 'Network', 
-        promptTemplate: 'Map the following content to [State/National] standards and identify gaps: ' 
+        promptTemplate: 'Map the following content to [State/National] standards and identify gaps: ',
+        minPlan: 'pro'
     },
 ];
 
@@ -51,31 +57,106 @@ const IconMap: Record<string, React.FC<any>> = {
     ListChecks, BookOpen, Target, Layers, Network, FileOutput
 };
 
-export const ToolGrid: React.FC = () => {
+interface ToolGridProps {
+    user: User;
+    onUpgrade: () => void;
+}
+
+export const ToolGrid: React.FC<ToolGridProps> = ({ user, onUpgrade }) => {
+    // Helper to check access
+    const hasAccess = (toolPlan: 'free' | 'pro' | 'enterprise') => {
+        if (toolPlan === 'free') return true;
+        if (toolPlan === 'pro') return user.plan === 'pro' || user.plan === 'enterprise';
+        if (toolPlan === 'enterprise') return user.plan === 'enterprise';
+        return false;
+    };
+
+    const getPlanLimitDisplay = () => {
+        if (user.plan === 'enterprise') return 'Unlimited';
+        if (user.plan === 'pro') return '500';
+        return '50';
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">AI Generation Tools</h2>
-                <div className="flex gap-2">
-                    <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-                        Plan Usage: 45 / 500 Queries
+                <div className="flex gap-2 items-center">
+                    <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm flex items-center gap-1">
+                        Queries: <span className="text-indigo-600 font-bold">{getPlanLimitDisplay()}</span>
+                        {user.plan === 'enterprise' && <Infinity size={14} className="text-indigo-600"/>}
                     </span>
+                    {user.plan === 'free' && (
+                        <button 
+                            onClick={onUpgrade}
+                            className="text-sm font-medium text-white bg-indigo-600 px-3 py-1 rounded-full shadow-sm hover:bg-indigo-700 transition-colors"
+                        >
+                            Upgrade
+                        </button>
+                    )}
                 </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tools.map((tool) => {
                     const Icon = IconMap[tool.icon] || FileOutput;
+                    const isLocked = !hasAccess(tool.minPlan);
+
                     return (
-                        <div key={tool.id} className="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-primary-200 transition-all cursor-pointer">
-                            <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary-600 group-hover:scale-110 transition-all duration-300">
-                                <Icon className="w-6 h-6 text-primary-600 group-hover:text-white transition-colors" />
+                        <div 
+                            key={tool.id} 
+                            onClick={() => isLocked ? onUpgrade() : console.log('Launch', tool.name)}
+                            className={`group relative bg-white p-6 rounded-xl border shadow-sm transition-all duration-300 ${
+                                isLocked 
+                                ? 'border-slate-100 cursor-not-allowed overflow-hidden' 
+                                : 'border-slate-200 hover:shadow-md hover:border-indigo-200 cursor-pointer'
+                            }`}
+                        >
+                            {/* Pro Badge for Tools that are Pro but unlocked */}
+                            {!isLocked && tool.minPlan === 'pro' && (
+                                <span className="absolute top-4 right-4 text-[10px] uppercase font-bold text-white bg-indigo-500 px-2 py-0.5 rounded-full shadow-sm">
+                                    PRO
+                                </span>
+                            )}
+
+                            {/* Locked Overlay */}
+                            {isLocked && (
+                                <div className="absolute inset-0 bg-slate-50/70 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="bg-white p-3 rounded-full shadow-lg mb-2 scale-90 group-hover:scale-100 transition-transform">
+                                        <Lock className="w-6 h-6 text-indigo-600" />
+                                    </div>
+                                    <p className="font-bold text-slate-800 text-sm">
+                                        Requires {tool.minPlan === 'enterprise' ? 'Enterprise' : 'Pro'} Plan
+                                    </p>
+                                    <span className="text-xs text-indigo-600 font-medium mt-1">Click to Upgrade</span>
+                                </div>
+                            )}
+
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 ${
+                                isLocked ? 'bg-slate-100 grayscale' : 'bg-indigo-50 group-hover:bg-indigo-600 group-hover:scale-110'
+                            }`}>
+                                <Icon className={`w-6 h-6 transition-colors ${
+                                    isLocked ? 'text-slate-400' : 'text-indigo-600 group-hover:text-white'
+                                }`} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">{tool.name}</h3>
-                            <p className="text-sm text-slate-500 mb-4">{tool.description}</p>
-                            <button className="w-full py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                                Launch Tool
-                            </button>
+                            <h3 className={`text-lg font-bold mb-2 ${isLocked ? 'text-slate-400' : 'text-slate-800'}`}>{tool.name}</h3>
+                            <p className={`text-sm mb-4 ${isLocked ? 'text-slate-300' : 'text-slate-500'}`}>{tool.description}</p>
+                            
+                            <div className="flex items-center justify-between">
+                                <button disabled={isLocked} className={`py-2 px-4 text-sm font-medium rounded-lg transition-colors ${
+                                    isLocked 
+                                    ? 'bg-slate-100 text-slate-400' 
+                                    : 'text-indigo-600 bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white w-full'
+                                }`}>
+                                    {isLocked ? 'Locked' : 'Launch Tool'}
+                                </button>
+                                
+                                {isLocked && (
+                                    <span className="absolute top-4 right-4 text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
+                                        {tool.minPlan}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     );
                 })}

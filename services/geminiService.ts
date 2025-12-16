@@ -10,11 +10,10 @@ declare const process: {
 };
 
 // Initialize the API client
-// Note: In a real production app, this key should be proxy-served or strictly env-managed.
 const apiKey = process.env.API_KEY || ''; 
 const ai = new GoogleGenAI({ apiKey });
 
-export const MASTER_PROMPT_SYSTEM_INSTRUCTION = `
+export const DEFAULT_SYSTEM_INSTRUCTION = `
 ===================================================================
 EDUNEXUS AI - NEURAL CORE v4.0
 Role: Elite Pedagogical Consultant & AI-Powered Curriculum Designer
@@ -91,15 +90,38 @@ STRUCTURE:
 ❌ Never generate unsafe procedures.
 ✓ Promote academic integrity.
 ✓ Use culturally responsive examples.
-
-=== AUTO-LEARNING LAYER (DYNAMIC)
 `;
+
+// Persistence Keys
+const SYSTEM_INSTRUCTION_KEY = 'edunexus_system_instruction';
+
+// Helper to get the current active instruction (Persisted or Default)
+export const getSystemInstruction = (): string => {
+  try {
+    const saved = localStorage.getItem(SYSTEM_INSTRUCTION_KEY);
+    return saved || DEFAULT_SYSTEM_INSTRUCTION;
+  } catch (e) {
+    return DEFAULT_SYSTEM_INSTRUCTION;
+  }
+};
+
+// Helper to save instruction
+export const saveSystemInstruction = (instruction: string): void => {
+    localStorage.setItem(SYSTEM_INSTRUCTION_KEY, instruction);
+};
+
+// Helper to reset instruction
+export const resetSystemInstruction = (): string => {
+    localStorage.removeItem(SYSTEM_INSTRUCTION_KEY);
+    return DEFAULT_SYSTEM_INSTRUCTION;
+};
 
 export const generateAIResponse = async (
   prompt: string,
   contextText?: string,
   modelName: string = 'gemini-2.5-flash',
-  systemInstruction: string = MASTER_PROMPT_SYSTEM_INSTRUCTION
+  // Default to fetching the dynamic instruction
+  systemInstruction: string = getSystemInstruction()
 ): Promise<string> => {
   
   if (!apiKey) {
@@ -145,7 +167,6 @@ export const generateStructuredToolResponse = async (
     context: string,
     userInput: string
 ): Promise<string> => {
-    // We enhance the prompt by explicitly referencing the "Types" defined in the Master Prompt
     const specificPrompt = `
     TASK_TYPE: ${toolName}
     CONTEXT_DOCUMENT: ${context}

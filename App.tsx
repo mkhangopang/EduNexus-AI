@@ -11,7 +11,7 @@ import { PricingModal } from './components/PricingModal';
 import { AITrainingDashboard } from './components/AITrainingDashboard';
 import { Auth } from './components/Auth';
 import { UserRole, AppView, User, Document, AITool } from './types';
-import { Brain, Upload, FileText, Users, Activity, Clock, Lock, Infinity, WifiOff, X, BookOpen } from 'lucide-react';
+import { Brain, Upload, FileText, Users, Activity, Clock, Lock, Infinity, WifiOff, X, BookOpen, ChevronDown } from 'lucide-react';
 import { offlineService } from './services/offlineService';
 
 const mockUsers: Record<UserRole, User> = {
@@ -41,9 +41,7 @@ const mockUsers: Record<UserRole, User> = {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
-  // This state tracks the document currently being Edited (LiveEditor)
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  // This state tracks the "Context Document" (The curriculum content driving AI)
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -51,12 +49,10 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize DB on load
   useEffect(() => {
     offlineService.init();
   }, []);
 
-  // Attempt to load documents from IDB if network is questionable
   useEffect(() => {
       const fetchOfflineDocs = async () => {
           try {
@@ -69,23 +65,15 @@ const App: React.FC = () => {
       fetchOfflineDocs();
   }, [currentView]);
 
-  // If no user is logged in, show Auth screen
   if (!currentUser) {
     return <Auth onLogin={(user) => setCurrentUser(user)} />;
   }
 
   const handleOpenDocumentInEditor = (docId: string) => {
-      // Feature Gate: Free users only limited access
-      if (currentUser.plan === 'free' && docId !== 'recent' && !offlineDocs.find(d => d.id === docId)) {
-          // Allow opening if it's in their offline docs (uploaded by them), otherwise check limits
-          // For this demo, we'll be lenient with uploaded docs
-      }
-      
       const doc = offlineDocs.find(d => d.id === docId);
       if (doc) {
           setActiveDocument(doc);
       }
-      
       setEditingDocId(docId);
       setCurrentView(AppView.EDITOR);
   };
@@ -103,23 +91,18 @@ const App: React.FC = () => {
     try {
         let content = '';
         let subject = 'General';
-
-        // CLIENT-SIDE TEXT EXTRACTION
-        // Note: In a real production app, you would send the file to a backend (Supabase Storage)
-        // and use a server function to extract text from PDF/DOCX using libraries like pdf-parse.
-        // Here, we support .txt/.md natively, and provide a placeholder for binaries.
         
+        // Simulating text extraction for demo purposes
+        // In production, this would go to an API endpoint
         if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
             content = await file.text();
             subject = 'Text Document';
         } else {
-            // Fallback for PDF/DOCX in pure browser mode
-            // We simulate "processing" but can't read the binary content easily without heavy libs
-            content = `[System Message: The file '${file.name}' was uploaded successfully.]\n\nNote: As this is a browser-only demo environment without a backend processing server, we cannot extract the full text from PDF/DOCX files automatically yet. \n\nPlease treat this as a placeholder. You can copy-paste your curriculum text here to use the AI features.`;
+            content = `[System Message: The file '${file.name}' was uploaded successfully.]\n\nNote: As this is a browser-only demo environment, we cannot extract the full text from PDF/DOCX files automatically yet. \n\nPlease treat this as a placeholder. You can copy-paste your curriculum text here to use the AI features.`;
             subject = 'Uploaded File';
         }
 
-        // Mock delay for "Processing" feel
+        // Add a small delay to simulate processing
         await new Promise(r => setTimeout(r, 800));
 
         const newDoc: Document = {
@@ -136,15 +119,12 @@ const App: React.FC = () => {
             summary: `Uploaded ${file.name}`
         };
 
-        // Persist to Offline DB
         await offlineService.saveDocument(newDoc);
         
-        // Update State
         setOfflineDocs(prev => [newDoc, ...prev]);
-        setActiveDocument(newDoc);
-        setEditingDocId(newDoc.id); // Open for viewing
+        setActiveDocument(newDoc); // Immediately set as context
         
-        // Ask AI about it
+        // Navigate to chat immediately to show it working
         setCurrentView(AppView.CHAT);
 
     } catch (error) {
@@ -164,7 +144,6 @@ const App: React.FC = () => {
 
   const handleLaunchTool = (tool: AITool, _contextContent: string) => {
       setCurrentView(AppView.CHAT);
-      // In a real implementation, we would pass the prompt intent to the Chat component
       console.log(`Launching ${tool.name}`);
   };
 
@@ -210,8 +189,6 @@ const App: React.FC = () => {
                 <div className="space-y-4">
                     <div className="flex justify-between text-sm"><span>API Latency</span><span className="font-medium">124ms</span></div>
                     <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full w-[20%]"></div></div>
-                    <div className="flex justify-between text-sm"><span>Database IOPS</span><span className="font-medium">45%</span></div>
-                    <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full w-[45%]"></div></div>
                 </div>
               </div>
             </div>
@@ -253,7 +230,7 @@ const App: React.FC = () => {
         );
       default: // Teacher
         const planLimit = currentUser.plan === 'free' ? 50 : (currentUser.plan === 'pro' ? 500 : 10000);
-        const queriesUsed = 45; // Mock data
+        const queriesUsed = 45;
         const isUnlimited = currentUser.plan === 'enterprise';
         
         return (
@@ -282,7 +259,6 @@ const App: React.FC = () => {
                         </button>
                     </div>
                 </div>
-                {/* Decorative background element */}
                 <div className="absolute right-0 top-0 h-full w-1/3 bg-white/5 skew-x-12 transform translate-x-12"></div>
              </div>
 
@@ -319,9 +295,6 @@ const App: React.FC = () => {
                                     ></div>
                                 )}
                             </div>
-                            {!isUnlimited && queriesUsed / planLimit > 0.8 && (
-                                <p className="text-xs text-amber-600 mt-2 font-medium">Running low! Upgrade for more.</p>
-                            )}
                         </div>
 
                          {offlineDocs.length > 0 && (
@@ -350,10 +323,8 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (currentView === AppView.EDITOR && editingDocId) {
-      // Find the document content
       const doc = offlineDocs.find(d => d.id === editingDocId);
       const content = doc ? (doc.content || '') : '';
-      const docName = doc ? doc.name : 'Untitled';
 
       return (
         <LiveEditor
@@ -416,38 +387,33 @@ const App: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {offlineDocs.map(doc => {
-                            // Check if this doc is available offline (it always is in this implementation)
-                            const isCached = true; 
-                            
-                            return (
-                                <div 
-                                    key={doc.id} 
-                                    onClick={() => handleOpenDocumentInEditor(doc.id)}
-                                    className={`p-6 rounded-xl border shadow-sm transition-all relative bg-white border-slate-200 cursor-pointer hover:shadow-md hover:border-indigo-200`}
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                                            <FileText size={24} />
+                        {offlineDocs.map(doc => (
+                            <div 
+                                key={doc.id} 
+                                onClick={() => handleOpenDocumentInEditor(doc.id)}
+                                className={`p-6 rounded-xl border shadow-sm transition-all relative bg-white border-slate-200 cursor-pointer hover:shadow-md hover:border-indigo-200`}
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                                        <FileText size={24} />
+                                    </div>
+                                    {!navigator.onLine && (
+                                        <div className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center gap-1">
+                                            <WifiOff size={10} />
+                                            Available Offline
                                         </div>
-                                        {isCached && !navigator.onLine && (
-                                            <div className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center gap-1">
-                                                <WifiOff size={10} />
-                                                Available Offline
-                                            </div>
-                                        )}
-                                    </div>
-                                    <h3 className="font-bold text-lg text-slate-800 mb-2 truncate" title={doc.name}>{doc.name}</h3>
-                                    <p className="text-sm text-slate-500 mb-4">
-                                        {doc.size} • {new Date(doc.uploadedAt).toLocaleDateString()}
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">Processed</span>
-                                        {doc.subject && <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded">{doc.subject}</span>}
-                                    </div>
+                                    )}
                                 </div>
-                            );
-                        })}
+                                <h3 className="font-bold text-lg text-slate-800 mb-2 truncate" title={doc.name}>{doc.name}</h3>
+                                <p className="text-sm text-slate-500 mb-4">
+                                    {doc.size} • {new Date(doc.uploadedAt).toLocaleDateString()}
+                                </p>
+                                <div className="flex gap-2">
+                                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">Processed</span>
+                                    {doc.subject && <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded">{doc.subject}</span>}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
              </div>
@@ -484,16 +450,14 @@ const App: React.FC = () => {
         onUpgrade={handleUpgrade}
       />
       
-      {/* Hidden File Input for Real Uploads */}
       <input 
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept=".txt,.md,.json,.csv" // In a real app we'd accept .pdf,.docx but parsing is backend only
+        accept=".txt,.md,.json,.csv,.pdf,.docx" 
         onChange={handleFileSelect}
       />
 
-      {/* Active Context Banner */}
       {activeDocument && (
           <div className="bg-indigo-600 text-white px-4 py-2 flex justify-between items-center shadow-md relative z-20">
               <div className="flex items-center gap-2 overflow-hidden">
@@ -515,24 +479,30 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* View Switcher for Demo - Only visible if not in specific admin views to avoid clutter */}
-      {currentUser.role === UserRole.APP_ADMIN && currentView === AppView.DASHBOARD && (
+      {/* View Switcher - ALWAYS VISIBLE for Testing/Demo purposes */}
+      {currentView === AppView.DASHBOARD && (
           <div className="mb-6 flex justify-end">
-              <select 
-                className="text-xs bg-slate-200 border-none rounded px-2 py-1 text-slate-700 cursor-pointer hover:bg-slate-300"
-                value={currentUser.role}
-                onChange={(e) => {
-                    const newRole = e.target.value as UserRole;
-                    const newUser = { ...mockUsers[newRole] };
-                    if (newRole === UserRole.TEACHER) newUser.plan = 'free'; 
-                    setCurrentUser(newUser);
-                    setCurrentView(AppView.DASHBOARD);
-                }}
-              >
-                <option value={UserRole.TEACHER}>View as Teacher (Free)</option>
-                <option value={UserRole.ENTERPRISE_ADMIN}>View as Ent. Admin</option>
-                <option value={UserRole.APP_ADMIN}>View as App Admin</option>
-              </select>
+             <div className="bg-slate-100 p-1 rounded-lg border border-slate-200 flex items-center gap-2">
+                <span className="text-xs text-slate-500 pl-2 font-medium">Simulate Role:</span>
+                <div className="relative">
+                  <select 
+                    className="text-xs bg-white border border-slate-200 rounded px-2 py-1 pr-6 text-slate-700 cursor-pointer hover:border-indigo-300 focus:outline-none focus:border-indigo-500 appearance-none"
+                    value={currentUser.role}
+                    onChange={(e) => {
+                        const newRole = e.target.value as UserRole;
+                        const newUser = { ...mockUsers[newRole] };
+                        if (newRole === UserRole.TEACHER) newUser.plan = 'free'; 
+                        setCurrentUser(newUser);
+                        setCurrentView(AppView.DASHBOARD);
+                    }}
+                  >
+                    <option value={UserRole.TEACHER}>Teacher (Free)</option>
+                    <option value={UserRole.ENTERPRISE_ADMIN}>Ent. Admin</option>
+                    <option value={UserRole.APP_ADMIN}>App Admin (Neural Core)</option>
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+             </div>
           </div>
       )}
       {renderContent()}

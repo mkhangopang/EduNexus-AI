@@ -1,20 +1,45 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User as UserIcon, Loader2, Sparkles, Paperclip } from 'lucide-react';
-import { generateAIResponse } from '../services/geminiService';
-import { ChatMessage } from '../types';
 
-export const ChatInterface: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'model',
-      content: "Hello! I'm EduNexus AI. I've analyzed your uploaded curriculum. Would you like me to generate a lesson plan or draft an assessment based on it?",
-      timestamp: Date.now()
-    }
-  ]);
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User as UserIcon, Loader2, Sparkles, Paperclip, FileText, WifiOff, Clock } from 'lucide-react';
+import { generateAIResponse } from '../services/geminiService';
+import { ChatMessage, Document } from '../types';
+import { offlineService } from '../services/offlineService';
+
+interface ChatInterfaceProps {
+    activeDocument: Document | null;
+}
+
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ activeDocument }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasInitialized = useRef(false);
+
+  // Initialize chat based on context
+  useEffect(() => {
+    if (!hasInitialized.current) {
+        const initialMsg = activeDocument 
+            ? `Hello! I've analyzed **${activeDocument.name}**. I see this is a **${activeDocument.subject || 'General'}** curriculum for **${activeDocument.gradeLevel || 'mixed levels'}**. I can help you generate lesson plans, assessments, or differentiate this content.`
+            : "Hello! I'm EduNexus AI. Upload a curriculum document to get personalized, evidence-based teaching resources, or just ask me general pedagogical questions.";
+        
+        setMessages([{
+            id: 'init',
+            role: 'model',
+            content: initialMsg,
+            timestamp: Date.now()
+        }]);
+        hasInitialized.current = true;
+    } else if (activeDocument) {
+        // If document changes while chat is open
+         setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            content: `Switched context to **${activeDocument.name}**. How can I help with this document?`,
+            timestamp: Date.now()
+        }]);
+    }
+  }, [activeDocument?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -36,10 +61,37 @@ export const ChatInterface: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
+    // Offline Handling
+    if (!navigator.onLine) {
+        try {
+            await offlineService.queueAction('AI_GENERATION', {
+                prompt: input,
+                context: activeDocument?.content
+            });
+
+            // Simulate a "Queued" response from the AI
+            setTimeout(() => {
+                const queuedMsg: ChatMessage = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'model',
+                    content: "You are currently offline. I've queued this request and will process it automatically once your connection is restored.",
+                    timestamp: Date.now(),
+                    isQueued: true
+                };
+                setMessages(prev => [...prev, queuedMsg]);
+                setIsLoading(false);
+            }, 600);
+            return;
+        } catch (e) {
+            console.error("Failed to queue offline action", e);
+        }
+    }
+
     try {
-      // Simulate context from an "active document"
-      const contextPrompt = `Context: User is asking about 9th Grade History curriculum. \n\nUser Query: ${input}`;
-      const responseText = await generateAIResponse(contextPrompt);
+      const responseText = await generateAIResponse(
+          input, 
+          activeDocument?.content
+      );
 
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -50,6 +102,12 @@ export const ChatInterface: React.FC = () => {
       setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
         console.error(error);
+        setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            content: "I'm having trouble connecting to the neural core. Please check your connection.",
+            timestamp: Date.now()
+        }]);
     } finally {
       setIsLoading(false);
     }
@@ -70,11 +128,26 @@ export const ChatInterface: React.FC = () => {
             <Bot className="w-4 h-4 md:w-5 md:h-5 text-primary-600 shrink-0" />
             <span className="truncate">Pedagogical Assistant</span>
           </h2>
-          <p className="text-xs text-slate-500 truncate max-w-[200px] md:max-w-none">Powered by Gemini 2.5 Flash • Context: World History Unit 3.pdf</p>
+          <div className="flex items-center gap-2 text-xs text-slate-500 truncate max-w-[200px] md:max-w-none">
+            <span>Powered by Gemini 2.5 Flash</span>
+            {activeDocument && (
+                <>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1 text-indigo-600 font-medium">
+                        <FileText size={10} />
+                        {activeDocument.name}
+                    </span>
+                </>
+            )}
+          </div>
         </div>
         <div className="flex gap-2 shrink-0 ml-2">
-            <button className="text-xs px-2 py-1 md:px-3 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">Clear</button>
-            <button className="text-xs px-2 py-1 md:px-3 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors hidden sm:block">Export</button>
+            <button 
+                onClick={() => setMessages([])} 
+                className="text-xs px-2 py-1 md:px-3 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors"
+            >
+                Clear
+            </button>
         </div>
       </div>
 
@@ -100,6 +173,13 @@ export const ChatInterface: React.FC = () => {
                      <p key={i} className="mb-1 last:mb-0">{line}</p>
                  ))}
               </div>
+              {msg.isQueued && (
+                  <div className="mt-2 pt-2 border-t border-slate-200/50 flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+                      <WifiOff size={10} />
+                      <Clock size={10} />
+                      <span>Request queued for sync</span>
+                  </div>
+              )}
             </div>
           </div>
         ))}
@@ -109,7 +189,9 @@ export const ChatInterface: React.FC = () => {
                <Loader2 className="w-4 h-4 md:w-5 md:h-5 text-white animate-spin" />
             </div>
             <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm">
-              <p className="text-sm text-slate-500 animate-pulse">Thinking...</p>
+              <p className="text-sm text-slate-500 animate-pulse">
+                {navigator.onLine ? "Analyzing curriculum context..." : "Queueing request..."}
+              </p>
             </div>
           </div>
         )}
@@ -124,7 +206,7 @@ export const ChatInterface: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about your lesson plan..."
+            placeholder={activeDocument ? `Ask about ${activeDocument.name}...` : "Ask a pedagogical question..."}
             className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-24 md:max-h-32 py-2 text-sm"
             rows={1}
             style={{ minHeight: '40px' }}
@@ -140,9 +222,6 @@ export const ChatInterface: React.FC = () => {
           >
             <Send className="w-5 h-5" />
           </button>
-        </div>
-        <div className="mt-1 md:mt-2 text-center hidden md:block landscape:hidden">
-            <p className="text-[10px] text-slate-400 truncate">AI can make mistakes. Please check important info.</p>
         </div>
       </div>
     </div>

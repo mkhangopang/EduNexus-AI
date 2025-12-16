@@ -15,6 +15,11 @@ interface SyncTask {
   timestamp: number;
 }
 
+interface SyncHandlers {
+    onProgress?: (remaining: number) => void;
+    onProcessAI?: (payload: any) => Promise<void>;
+}
+
 class OfflineService {
   private db: IDBDatabase | null = null;
 
@@ -122,11 +127,12 @@ class OfflineService {
 
   // --- Sync Logic ---
 
-  async syncPendingActions(): Promise<number> {
+  async syncPendingActions(handlers: SyncHandlers = {}): Promise<number> {
     const actions = await this.getPendingActions();
     if (actions.length === 0) return 0;
 
-    console.log(`[OfflineService] Syncing ${actions.length} pending actions...`);
+    let remaining = actions.length;
+    console.log(`[OfflineService] Syncing ${remaining} pending actions...`);
 
     for (const action of actions) {
       try {
@@ -137,9 +143,14 @@ class OfflineService {
           await new Promise(r => setTimeout(r, 500));
         } else if (action.type === 'AI_GENERATION') {
             console.log('[OfflineService] Processing queued AI prompt:', action.payload);
+            if (handlers.onProcessAI) {
+                await handlers.onProcessAI(action.payload);
+            }
         }
         
         await this.clearProcessedAction(action.id);
+        remaining--;
+        if (handlers.onProgress) handlers.onProgress(remaining);
       } catch (error) {
         console.error('[OfflineService] Failed to sync action', action.id, error);
         // Keep in queue to retry later

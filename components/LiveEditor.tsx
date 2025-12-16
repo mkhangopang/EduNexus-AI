@@ -24,11 +24,14 @@ export const LiveEditor: React.FC<LiveEditorProps> = ({ documentId, initialConte
     // Load offline content if available
     useEffect(() => {
         const loadOfflineContent = async () => {
-            if (!navigator.onLine) {
+            // Always try to load latest local version first for speed
+            try {
                 const cachedDoc = await offlineService.getDocument(documentId);
                 if (cachedDoc && cachedDoc.content) {
                     setContent(cachedDoc.content);
                 }
+            } catch (e) {
+                console.error("Failed to load local doc", e);
             }
         };
         loadOfflineContent();
@@ -128,18 +131,12 @@ export const LiveEditor: React.FC<LiveEditorProps> = ({ documentId, initialConte
                 activeUsers={isOffline ? [] : collaborators} 
                 documentTitle={`Curriculum_Draft_v${documentId}.docx`}
                 onInvite={() => alert("Invite link copied to clipboard!")}
+                isOffline={isOffline}
             />
             
             <div className="flex-1 p-8 overflow-auto flex justify-center">
                 <div className="w-full max-w-4xl bg-white shadow-md rounded-xl min-h-[800px] relative p-12 border border-slate-200">
                     
-                    {isOffline && (
-                        <div className="absolute top-2 right-2 px-3 py-1 bg-amber-50 text-amber-600 text-xs rounded-lg border border-amber-200 flex items-center gap-2 z-20">
-                            <WifiOff size={12} />
-                            Editing Offline
-                        </div>
-                    )}
-
                     {/* Render Remote Cursors (only if online) */}
                     {!isOffline && Object.entries(cursors).map(([userId, pos]: [string, { x: number; y: number }]) => {
                         const user = collaborators.find(c => c.id === userId);

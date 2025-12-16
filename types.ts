@@ -34,6 +34,10 @@ export interface Document {
   status: 'processed' | 'processing' | 'error';
   content?: string;
   lastModifiedBy?: string;
+  // Personalization Metadata
+  subject?: string;
+  gradeLevel?: string;
+  summary?: string;
 }
 
 export interface ChatMessage {
@@ -41,6 +45,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   content: string;
   timestamp: number;
+  isQueued?: boolean;
 }
 
 export interface AITool {

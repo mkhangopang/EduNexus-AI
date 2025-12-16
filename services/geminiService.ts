@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 // Initialize the API client
@@ -88,6 +89,7 @@ STRUCTURE:
 
 export const generateAIResponse = async (
   prompt: string,
+  contextText?: string,
   modelName: string = 'gemini-2.5-flash',
   systemInstruction: string = MASTER_PROMPT_SYSTEM_INSTRUCTION
 ): Promise<string> => {
@@ -96,10 +98,27 @@ export const generateAIResponse = async (
     return "Simulated Response: API Key is missing. Please configure process.env.API_KEY to see real Gemini responses. I would normally analyze your request based on the pedagogical master prompt.";
   }
 
+  // Inject Context if available
+  let finalPrompt = prompt;
+  if (contextText) {
+      finalPrompt = `
+      ACTIVE CURRICULUM CONTEXT:
+      """
+      ${contextText}
+      """
+
+      USER REQUEST:
+      ${prompt}
+
+      INSTRUCTIONS:
+      Use the provided ACTIVE CURRICULUM CONTEXT as the primary source of truth. Tailor all output to the subject matter, grade level, and specific content found in the context.
+      `;
+  }
+
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: modelName,
-      contents: prompt,
+      contents: finalPrompt,
       config: {
         systemInstruction: systemInstruction,
         temperature: 0.7, // Balanced creativity and precision

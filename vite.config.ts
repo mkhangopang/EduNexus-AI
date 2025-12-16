@@ -1,19 +1,22 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  // Fix: Use '.' instead of process.cwd() as types for process.cwd() might be missing
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
     plugins: [react()],
     define: {
-      // This ensures process.env.API_KEY is replaced by the actual string value during build
-      // to satisfy the Gemini SDK requirement in a browser environment.
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Prioritize the VITE_GEMINI_API_KEY, fallback to API_KEY, then empty string.
+      // This allows setting 'API_KEY' directly in Vercel dashboard.
+      'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.API_KEY || ''),
     },
+    server: {
+      host: true,
+      port: 3000
+    }
   };
 });

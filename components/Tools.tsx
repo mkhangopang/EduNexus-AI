@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { BookOpen, ListChecks, Target, Network, Layers, FileOutput, Lock, Infinity } from 'lucide-react';
-import { AITool, User } from '../types';
+import { BookOpen, ListChecks, Target, Network, Layers, FileOutput, Lock, Infinity, FileText } from 'lucide-react';
+import { AITool, User, Document } from '../types';
 
 const tools: AITool[] = [
     { 
@@ -8,7 +9,7 @@ const tools: AITool[] = [
         name: 'Rubric Generator', 
         description: "Create Bloom's aligned rubrics in seconds.", 
         icon: 'ListChecks', 
-        promptTemplate: 'Generate a Type 1: Rubric for the following assignment/standard: ',
+        promptTemplate: 'Generate a Type 1: Rubric for the following assignment/standard found in the text: ',
         minPlan: 'free'
     },
     { 
@@ -16,7 +17,7 @@ const tools: AITool[] = [
         name: 'Lesson Planner', 
         description: "Draft 5E or UbD lesson plans instantly.", 
         icon: 'BookOpen', 
-        promptTemplate: 'Create a Type 3: Lesson Plan (specify 5E or UbD) for: ',
+        promptTemplate: 'Create a Type 3: Lesson Plan (specify 5E or UbD) based on the following content: ',
         minPlan: 'free'
     },
     { 
@@ -24,7 +25,7 @@ const tools: AITool[] = [
         name: 'Assessment Builder', 
         description: "Generate MCQs and essay prompts.", 
         icon: 'Target', 
-        promptTemplate: 'Create a Type 2: Assessment (5 MCQs) and one Type 4: Short Response for: ',
+        promptTemplate: 'Create a Type 2: Assessment (5 MCQs) and one Type 4: Short Response based on: ',
         minPlan: 'free'
     },
     { 
@@ -32,7 +33,7 @@ const tools: AITool[] = [
         name: 'SLO Auto-Tagger', 
         description: "Identify learning objectives automatically.", 
         icon: 'Target', 
-        promptTemplate: 'Extract all Student Learning Objectives (SLOs) and tag with Bloom\'s/DOK levels from: ',
+        promptTemplate: 'Extract all Student Learning Objectives (SLOs) and tag with Bloom\'s/DOK levels from this content: ',
         minPlan: 'pro'
     },
     { 
@@ -40,7 +41,7 @@ const tools: AITool[] = [
         name: 'Differentiation Wizard', 
         description: "Scaffold content for diverse learners.", 
         icon: 'Layers', 
-        promptTemplate: 'Apply Type 5: Differentiation (3-Tier System) to this content: ',
+        promptTemplate: 'Apply Type 5: Differentiation (3-Tier System) to this specific section of the content: ',
         minPlan: 'pro'
     },
     { 
@@ -59,10 +60,12 @@ const IconMap: Record<string, React.FC<any>> = {
 
 interface ToolGridProps {
     user: User;
+    activeDocument: Document | null;
     onUpgrade: () => void;
+    onLaunchTool: (tool: AITool, contextContent: string) => void;
 }
 
-export const ToolGrid: React.FC<ToolGridProps> = ({ user, onUpgrade }) => {
+export const ToolGrid: React.FC<ToolGridProps> = ({ user, activeDocument, onUpgrade, onLaunchTool }) => {
     // Helper to check access
     const hasAccess = (toolPlan: 'free' | 'pro' | 'enterprise') => {
         if (toolPlan === 'free') return true;
@@ -77,11 +80,30 @@ export const ToolGrid: React.FC<ToolGridProps> = ({ user, onUpgrade }) => {
         return '50';
     };
 
+    const handleLaunch = (tool: AITool) => {
+        if (activeDocument && activeDocument.content) {
+            onLaunchTool(tool, activeDocument.content);
+        } else {
+            // If no doc, we still launch but maybe prompt user to paste text
+            // For now we just log
+            console.log("No active document context");
+            alert("Please select a document from the Dashboard or My Documents to use this tool with context.");
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800">AI Generation Tools</h2>
-                <div className="flex gap-2 items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">AI Generation Tools</h2>
+                    {activeDocument && (
+                        <p className="text-sm text-indigo-600 font-medium flex items-center gap-1 mt-1">
+                            <FileText size={14} />
+                            Context: {activeDocument.name} ({activeDocument.subject})
+                        </p>
+                    )}
+                </div>
+                <div className="flex gap-2 items-center self-end md:self-auto">
                     <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm flex items-center gap-1">
                         Queries: <span className="text-indigo-600 font-bold">{getPlanLimitDisplay()}</span>
                         {user.plan === 'enterprise' && <Infinity size={14} className="text-indigo-600"/>}
@@ -105,7 +127,7 @@ export const ToolGrid: React.FC<ToolGridProps> = ({ user, onUpgrade }) => {
                     return (
                         <div 
                             key={tool.id} 
-                            onClick={() => isLocked ? onUpgrade() : console.log('Launch', tool.name)}
+                            onClick={() => isLocked ? onUpgrade() : handleLaunch(tool)}
                             className={`group relative bg-white p-6 rounded-xl border shadow-sm transition-all duration-300 ${
                                 isLocked 
                                 ? 'border-slate-100 cursor-not-allowed overflow-hidden' 
@@ -148,7 +170,7 @@ export const ToolGrid: React.FC<ToolGridProps> = ({ user, onUpgrade }) => {
                                     ? 'bg-slate-100 text-slate-400' 
                                     : 'text-indigo-600 bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white w-full'
                                 }`}>
-                                    {isLocked ? 'Locked' : 'Launch Tool'}
+                                    {isLocked ? 'Locked' : activeDocument ? 'Use with Active Doc' : 'Launch Tool'}
                                 </button>
                                 
                                 {isLocked && (

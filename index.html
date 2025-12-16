@@ -1,9 +1,18 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EduNexus AI</title>
+    <title>EduNexus AI | Intelligent Curriculum Systems</title>
+    <meta name="description" content="A revolutionary 3-tier EdTech SaaS platform converting curriculum into intelligent learning systems using Gemini 2.5 Flash." />
+    <meta name="theme-color" content="#4f46e5" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="EduNexus AI" />
+    <meta property="og:description" content="AI-Powered Curriculum Design for Modern Educators." />
+    
     <!-- Using Tailwind CDN for simplicity in this specific setup, though installing it locally is also an option -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,6 +36,15 @@
             },
             fontFamily: {
               sans: ['Plus Jakarta Sans', 'sans-serif'],
+            },
+            animation: {
+                slideIn: 'slideIn 0.3s ease-out forwards',
+            },
+            keyframes: {
+                slideIn: {
+                    '0%': { opacity: '0', transform: 'translateX(20px)' },
+                    '100%': { opacity: '1', transform: 'translateX(0)' },
+                }
             }
           }
         }

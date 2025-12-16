@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppView, User } from '../types';
 import { offlineService } from '../services/offlineService';
+import { generateAIResponse } from '../services/geminiService';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -18,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Bell
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -42,34 +44,87 @@ export const Layout: React.FC<LayoutProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [notification, setNotification] = useState<{title: string, message: string} | null>(null);
+
+  const updatePendingCount = async () => {
+    try {
+        const actions = await offlineService.getPendingActions();
+        setPendingCount(actions.length);
+    } catch (e) {
+        console.error("Error fetching pending actions", e);
+    }
+  };
 
   useEffect(() => {
+    if (notification) {
+        const timer = setTimeout(() => setNotification(null), 5000);
+        return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  useEffect(() => {
+    let offlineInterval: ReturnType<typeof setInterval>;
+
     const handleOnline = async () => {
         setIsOnline(true);
         setIsSyncing(true);
+        
+        if (offlineInterval) clearInterval(offlineInterval);
+
         try {
-            const count = await offlineService.syncPendingActions();
+            // Update initial count before sync starts
+            await updatePendingCount();
+
+            const count = await offlineService.syncPendingActions({
+                onProgress: (remaining) => {
+                   setPendingCount(remaining);
+                },
+                onProcessAI: async (payload) => {
+                    // Logic to process queued AI requests
+                    // In a real app, you might save this result to a database or message history
+                    try {
+                        const response = await generateAIResponse(payload.prompt, payload.context);
+                        setNotification({
+                            title: 'AI Request Processed',
+                            message: `Your queued request "${payload.prompt.substring(0, 20)}..." is ready. \nResult snippet: ${response.substring(0, 60)}...`
+                        });
+                    } catch (e) {
+                        console.error("Failed to process queued AI request", e);
+                    }
+                }
+            });
+            
             if (count > 0) {
                 console.log(`Synced ${count} items.`);
             }
         } finally {
             setIsSyncing(false);
+            setPendingCount(0);
         }
     };
     
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+        setIsOnline(false);
+        updatePendingCount();
+        // Poll for changes while offline (e.g. saves happening in background)
+        offlineInterval = setInterval(updatePendingCount, 2000);
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial check in case we reloaded while offline
+    // Initial check
     if (navigator.onLine) {
        handleOnline();
+    } else {
+       handleOffline();
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (offlineInterval) clearInterval(offlineInterval);
     };
   }, []);
 
@@ -129,17 +184,34 @@ export const Layout: React.FC<LayoutProps> = ({
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden relative">
       
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-[70] bg-white border border-emerald-200 shadow-xl rounded-xl p-4 max-w-sm animate-[slideIn_0.3s_ease-out] flex gap-3">
+             <div className="bg-emerald-100 p-2 rounded-lg h-fit text-emerald-600">
+                 <Sparkles size={20} />
+             </div>
+             <div>
+                 <h4 className="font-bold text-slate-800 text-sm">{notification.title}</h4>
+                 <p className="text-xs text-slate-500 mt-1 leading-relaxed whitespace-pre-line">{notification.message}</p>
+             </div>
+             <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600 h-fit">
+                 <span className="sr-only">Close</span>
+                 &times;
+             </button>
+        </div>
+      )}
+
       {/* Offline Indicator Banner */}
       {!isOnline && (
         <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white px-4 py-1 text-xs font-bold flex justify-center items-center gap-2 shadow-md">
             <WifiOff size={14} />
-            Offline Mode Active - Changes will sync automatically when online.
+            Offline Mode - {pendingCount} {pendingCount === 1 ? 'change' : 'changes'} pending sync.
         </div>
       )}
       {isOnline && isSyncing && (
         <div className="absolute top-0 left-0 right-0 z-[60] bg-emerald-600 text-white px-4 py-1 text-xs font-bold flex justify-center items-center gap-2 shadow-md animate-pulse">
             <RefreshCw size={14} className="animate-spin" />
-            Syncing data...
+            Syncing {pendingCount} {pendingCount === 1 ? 'item' : 'items'}...
         </div>
       )}
 

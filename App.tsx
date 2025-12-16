@@ -10,8 +10,8 @@ import { Settings } from './components/Settings';
 import { PricingModal } from './components/PricingModal';
 import { AITrainingDashboard } from './components/AITrainingDashboard';
 import { Auth } from './components/Auth';
-import { UserRole, AppView, User, Document } from './types';
-import { Brain, Upload, FileText, CheckCircle, Users, Activity, Clock, Lock, Infinity, WifiOff } from 'lucide-react';
+import { UserRole, AppView, User, Document, AITool } from './types';
+import { Brain, Upload, FileText, CheckCircle, Users, Activity, Clock, Lock, Infinity, WifiOff, X, BookOpen } from 'lucide-react';
 import { MASTER_PROMPT_SYSTEM_INSTRUCTION } from './services/geminiService';
 import { offlineService } from './services/offlineService';
 
@@ -39,24 +39,41 @@ const mockUsers: Record<UserRole, User> = {
   }
 };
 
-const initialDocContent = `Title: Unit 3 - The Industrial Revolution
+const SAMPLE_CURRICULUM = `
+Title: Advanced Biology: Genetics & Heredity
+Grade Level: 9-10
+Subject: Science / Biology
 
-Learning Objectives:
-1. Students will analyze the causes of urbanization.
-2. Students will evaluate the impact of new technologies.
+Unit Overview:
+This unit covers the fundamental principles of genetics, including Mendelian inheritance, DNA structure and function, and modern genetic engineering.
 
-Part 1: Introduction (15 mins)
-- Hook: Show images of Manchester in 1750 vs 1850.
-- Discuss: What changed? Why?
+Key Learning Objectives (SLOs):
+1. Students will analyze how biological traits are passed on to successive generations.
+2. Students will use Punnett squares to predict the probability of traits.
+3. Students will construct an explanation based on evidence for how the structure of DNA determines the structure of proteins.
 
-...`;
+Core Content:
+- Section 1: DNA Structure (Double Helix, Nucleotides, Base Pairing)
+- Section 2: Mitosis vs Meiosis (Process and Outcomes)
+- Section 3: Patterns of Inheritance (Dominant/Recessive, Incomplete Dominance)
+- Section 4: Genetic Disorders and Bioethics.
+
+Assessment Standards:
+- NGSS HS-LS3-1
+- NGSS HS-LS3-2
+`;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
-  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  // This state tracks the document currently being Edited (LiveEditor)
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  // This state tracks the "Context Document" (The curriculum content driving AI)
+  const [activeDocument, setActiveDocument] = useState<Document | null>(null);
+  
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [offlineDocs, setOfflineDocs] = useState<Document[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Initialize DB on load
   useEffect(() => {
@@ -81,14 +98,45 @@ const App: React.FC = () => {
     return <Auth onLogin={(user) => setCurrentUser(user)} />;
   }
 
-  const handleOpenDocument = (docId: string) => {
+  const handleOpenDocumentInEditor = (docId: string) => {
       // Feature Gate: Free users only 1 doc
       if (currentUser.plan === 'free' && docId !== '1' && docId !== 'recent') {
           setIsPricingOpen(true);
           return;
       }
-      setActiveDocId(docId);
+      setEditingDocId(docId);
       setCurrentView(AppView.EDITOR);
+  };
+
+  const handleSetContext = (doc: Document) => {
+      setActiveDocument(doc);
+      // Automatically switch to chat if context is set from dashboard
+      // setCurrentView(AppView.CHAT); // Optional: depends on UX preference.
+  };
+
+  const handleSimulateUpload = () => {
+      setIsUploading(true);
+      setTimeout(() => {
+          const newDoc: Document = {
+              id: 'curr_' + Date.now(),
+              name: 'Biology_Unit4_Genetics.docx',
+              type: 'docx',
+              size: '2.4MB',
+              uploadedAt: new Date().toISOString(),
+              status: 'processed',
+              content: SAMPLE_CURRICULUM,
+              lastModifiedBy: currentUser.id,
+              subject: 'Biology',
+              gradeLevel: '9th Grade',
+              summary: 'Genetics, DNA, and Heredity unit.'
+          };
+          
+          setActiveDocument(newDoc);
+          setEditingDocId(newDoc.id); // Also open it for editing
+          setIsUploading(false);
+          // Show chat or editor? Let's show chat to demonstrate personalization
+          setCurrentView(AppView.CHAT);
+      }, 1500);
   };
 
   const handleUpgrade = (newPlan: 'free' | 'pro' | 'enterprise') => {
@@ -96,6 +144,16 @@ const App: React.FC = () => {
       setIsPricingOpen(false);
       // In a real app, this would trigger Stripe/payment flow
       alert(`Successfully upgraded to ${newPlan.toUpperCase()}!`);
+  };
+
+  const handleLaunchTool = (tool: AITool, contextContent: string) => {
+      // Logic to switch to chat and pre-fill input with the prompt
+      setCurrentView(AppView.CHAT);
+      // In a real implementation, we would pass the prompt to the Chat component via props or context
+      // For this demo, we rely on the user knowing they are in the chat now, or we could set a transient state
+      console.log(`Launching ${tool.name} with context`);
+      // Simulating a system message or user prompt injection
+      alert(`Tool launched! The AI will now use the active curriculum to: ${tool.name}`);
   };
 
   const renderDashboard = () => {
@@ -162,7 +220,7 @@ const App: React.FC = () => {
                         {[1,2,3].map(i => (
                             <div 
                                 key={i} 
-                                onClick={() => handleOpenDocument(i.toString())}
+                                onClick={() => handleOpenDocumentInEditor(i.toString())}
                                 className="flex items-center justify-between p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
@@ -196,10 +254,12 @@ const App: React.FC = () => {
                     </p>
                     <div className="flex gap-4">
                         <button 
-                            onClick={() => setCurrentView(AppView.DOCUMENTS)}
+                            onClick={handleSimulateUpload}
+                            disabled={isUploading}
                             className="bg-white text-indigo-600 px-6 py-2 rounded-lg font-semibold hover:bg-indigo-50 transition-colors flex items-center gap-2"
                         >
-                            <Upload size={18} /> Upload Document
+                            {isUploading ? <Activity className="animate-spin" size={18} /> : <Upload size={18} />}
+                            {isUploading ? 'Analyzing...' : 'Upload Curriculum'}
                         </button>
                         <button 
                             onClick={() => setCurrentView(AppView.AI_TOOLS)}
@@ -252,7 +312,7 @@ const App: React.FC = () => {
                         </div>
 
                          <div 
-                             onClick={() => handleOpenDocument('recent')}
+                             onClick={() => handleOpenDocumentInEditor('recent')}
                              className="flex items-center justify-between p-4 bg-slate-50 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors group"
                         >
                             <div className="flex items-center gap-3">
@@ -270,19 +330,19 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (currentView === AppView.EDITOR && activeDocId) {
+    if (currentView === AppView.EDITOR && editingDocId) {
       // Logic: if docId is 'recent', try to find last modified from offlineDocs
-      let content = initialDocContent;
+      let content = activeDocument && activeDocument.id === editingDocId ? activeDocument.content! : `Title: Unit 3 - The Industrial Revolution\n\n...`;
       
       // Check offline cache for this specific doc
-      const cached = offlineDocs.find(d => d.id === activeDocId);
+      const cached = offlineDocs.find(d => d.id === editingDocId);
       if (cached && cached.content) {
           content = cached.content;
       }
 
       return (
         <LiveEditor
-          documentId={activeDocId}
+          documentId={editingDocId}
           initialContent={content}
           currentUser={currentUser}
           onBack={() => setCurrentView(AppView.DASHBOARD)}
@@ -293,7 +353,7 @@ const App: React.FC = () => {
     if (currentView === AppView.CHAT) {
       return (
         <div className="h-full w-full">
-          <ChatInterface />
+          <ChatInterface activeDocument={activeDocument} />
         </div>
       );
     }
@@ -303,7 +363,9 @@ const App: React.FC = () => {
             <div className="p-6">
                 <ToolGrid 
                     user={currentUser} 
+                    activeDocument={activeDocument}
                     onUpgrade={() => setIsPricingOpen(true)}
+                    onLaunchTool={handleLaunchTool}
                 />
             </div>
         )
@@ -314,11 +376,15 @@ const App: React.FC = () => {
              <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-slate-800">My Documents</h2>
-                    {currentUser.plan === 'free' && (
-                        <span className="text-sm bg-amber-50 text-amber-700 px-3 py-1 rounded-full border border-amber-200">
-                            Free Plan Limit: 1 Active Document
-                        </span>
-                    )}
+                    <div className="flex gap-3">
+                         <button 
+                            onClick={handleSimulateUpload}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2"
+                        >
+                            {isUploading ? <Activity className="animate-spin" size={16} /> : <Upload size={16} />}
+                            Upload New
+                        </button>
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Render standard docs, mixed with offline queue status */}
@@ -330,7 +396,7 @@ const App: React.FC = () => {
                         return (
                             <div 
                                 key={i} 
-                                onClick={() => handleOpenDocument(i.toString())}
+                                onClick={() => handleOpenDocumentInEditor(i.toString())}
                                 className={`p-6 rounded-xl border shadow-sm transition-all relative ${
                                     isLocked 
                                     ? 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-75' 
@@ -399,6 +465,28 @@ const App: React.FC = () => {
         onUpgrade={handleUpgrade}
       />
       
+      {/* Active Context Banner */}
+      {activeDocument && (
+          <div className="bg-indigo-600 text-white px-4 py-2 flex justify-between items-center shadow-md relative z-20">
+              <div className="flex items-center gap-2">
+                  <BookOpen size={16} className="text-indigo-200" />
+                  <span className="text-sm font-medium">Active Curriculum Context: <span className="font-bold text-white">{activeDocument.name}</span></span>
+                  <span className="text-xs bg-indigo-500 px-2 py-0.5 rounded text-indigo-100 ml-2">{activeDocument.subject}</span>
+              </div>
+              <div className="flex gap-3">
+                  <button 
+                    onClick={() => setCurrentView(AppView.CHAT)}
+                    className="text-xs bg-white text-indigo-600 px-2 py-1 rounded font-bold hover:bg-indigo-50"
+                  >
+                      Ask AI
+                  </button>
+                  <button onClick={() => setActiveDocument(null)} className="text-indigo-200 hover:text-white">
+                      <X size={16} />
+                  </button>
+              </div>
+          </div>
+      )}
+
       {/* View Switcher for Demo - Only visible if not in specific admin views to avoid clutter */}
       {currentUser.role === UserRole.APP_ADMIN && currentView === AppView.DASHBOARD && (
           <div className="mb-6 flex justify-end">

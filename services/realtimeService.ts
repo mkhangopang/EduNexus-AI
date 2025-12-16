@@ -1,4 +1,5 @@
-import { supabase } from './supabaseClient';
+
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 type EventHandler = (payload: any) => void;
@@ -9,6 +10,12 @@ class RealtimeService {
 
   // Join a Supabase Realtime Channel
   joinRoom(roomId: string, user: { id: string; name: string; avatar: string; color?: string }) {
+    // Safety check for Demo/Pitch mode without backend
+    if (!isSupabaseConfigured()) {
+        console.warn("[Realtime] Supabase not configured. Running in local simulation mode.");
+        return;
+    }
+
     // Cleanup previous channel if exists
     if (this.channel) this.leaveRoom();
 
@@ -85,7 +92,8 @@ class RealtimeService {
 
   // Broadcast local cursor position
   broadcastCursor(x: number, y: number, userId: string) {
-     this.channel?.send({
+     if (!this.channel) return;
+     this.channel.send({
          type: 'broadcast',
          event: 'cursor',
          payload: { userId, x, y }
@@ -94,7 +102,8 @@ class RealtimeService {
 
   // Broadcast text changes
   broadcastTextChange(newText: string, userId: string) {
-     this.channel?.send({
+     if (!this.channel) return;
+     this.channel.send({
          type: 'broadcast',
          event: 'text_update',
          payload: { userId, text: newText }

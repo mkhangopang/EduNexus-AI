@@ -1,26 +1,45 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { Collaborator } from '../types';
-import { Users, Plus, Share2, Circle } from 'lucide-react';
+import { Users, Plus, Share2, WifiOff, CloudOff } from 'lucide-react';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 
 interface CollaboratorHeaderProps {
     activeUsers: Collaborator[];
     documentTitle: string;
     onInvite: () => void;
+    isOffline: boolean;
 }
 
-export const CollaboratorHeader: React.FC<CollaboratorHeaderProps> = ({ activeUsers, documentTitle, onInvite }) => {
+export const CollaboratorHeader: React.FC<CollaboratorHeaderProps> = ({ activeUsers, documentTitle, onInvite, isOffline }) => {
+    const isDemoMode = !isSupabaseConfigured() && !isOffline;
+
     return (
         <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shadow-sm sticky top-0 z-20">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 rounded-lg">
-                    <Share2 className="w-5 h-5 text-indigo-600" />
+                <div className={`p-2 rounded-lg ${isOffline ? 'bg-amber-100' : 'bg-indigo-50'}`}>
+                    <Share2 className={`w-5 h-5 ${isOffline ? 'text-amber-600' : 'text-indigo-600'}`} />
                 </div>
                 <div>
                     <h2 className="font-semibold text-slate-800 text-lg leading-tight">{documentTitle}</h2>
-                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        Live Sync Active
-                    </p>
+                    <div className="flex items-center gap-2">
+                        {isOffline ? (
+                            <p className="text-xs text-amber-600 flex items-center gap-1 font-medium">
+                                <WifiOff size={10} />
+                                Offline Mode • Changes Saved Locally
+                            </p>
+                        ) : isDemoMode ? (
+                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                                <CloudOff size={10} />
+                                Demo Mode • Backend Disconnected
+                            </p>
+                        ) : (
+                            <p className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Live Sync Active
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -44,22 +63,28 @@ export const CollaboratorHeader: React.FC<CollaboratorHeaderProps> = ({ activeUs
                             </div>
                         </div>
                     ))}
-                    <button 
-                        onClick={onInvite}
-                        className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white text-slate-500 hover:bg-slate-200 transition-colors"
-                        title="Add people"
-                    >
-                        <Plus className="w-4 h-4" />
-                    </button>
+                    {!isOffline && (
+                        <button 
+                            onClick={onInvite}
+                            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center border-2 border-white text-slate-500 hover:bg-slate-200 transition-colors"
+                            title="Add people"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
-                <div className="h-8 w-px bg-slate-200"></div>
-                <button 
-                    onClick={onInvite}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-                >
-                    <Users className="w-4 h-4" />
-                    Share
-                </button>
+                {!isOffline && (
+                    <>
+                        <div className="h-8 w-px bg-slate-200"></div>
+                        <button 
+                            onClick={onInvite}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                        >
+                            <Users className="w-4 h-4" />
+                            Share
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );

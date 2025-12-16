@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Sparkles, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
+import { Sparkles, Mail, Lock, User as UserIcon, ArrowRight, AlertCircle } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -12,27 +13,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAuth = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
+  // Fallback demo login for when Supabase is not configured
+  const handleDemoLogin = () => {
       let role = UserRole.TEACHER;
       let plan: 'free' | 'pro' | 'enterprise' = 'free';
       
-      // Mock logic for demo purposes based on email patterns
-      // In a real app, this would come from the backend/Supabase
-      if (email.includes('admin')) {
-        role = UserRole.APP_ADMIN;
-        plan = 'enterprise';
-      } else if (email.includes('ent')) {
-        role = UserRole.ENTERPRISE_ADMIN;
-        plan = 'enterprise';
-      } else if (email.includes('pro')) {
-        plan = 'pro';
-      }
+      if (email.includes('admin')) { role = UserRole.APP_ADMIN; plan = 'enterprise'; }
+      else if (email.includes('ent')) { role = UserRole.ENTERPRISE_ADMIN; plan = 'enterprise'; }
+      else if (email.includes('pro')) { plan = 'pro'; }
 
       const user: User = {
         id: Date.now().toString(),
@@ -41,10 +31,67 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         plan
       };
-
       onLogin(user);
       setIsLoading(false);
-    }, 1000);
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
+    // Check if connected
+    if (!isSupabaseConfigured()) {
+        console.warn("Supabase not configured. Using demo login.");
+        setTimeout(handleDemoLogin, 800);
+        return;
+    }
+
+    try {
+        if (isLogin) {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) throw error;
+            if (data.user) {
+                // In a real app, you would fetch the user's role/plan from a 'profiles' table here
+                const user: User = {
+                    id: data.user.id,
+                    name: data.user.user_metadata.name || email.split('@')[0],
+                    role: UserRole.TEACHER, // Default role
+                    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.email}`,
+                    plan: 'free' // Default plan
+                };
+                onLogin(user);
+            }
+        } else {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { name }
+                }
+            });
+            
+            if (error) throw error;
+            if (data.user) {
+                 const user: User = {
+                    id: data.user.id,
+                    name: name,
+                    role: UserRole.TEACHER,
+                    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+                    plan: 'free'
+                };
+                onLogin(user);
+            }
+        }
+    } catch (err: any) {
+        setError(err.message || "Authentication failed");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -64,7 +111,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <p className="text-slate-500 mt-2">
             {isLogin ? 'Welcome back, educator.' : 'Start your teaching revolution.'}
           </p>
+          {!isSupabaseConfigured() && (
+             <div className="mt-4 p-2 bg-amber-50 text-amber-700 text-xs rounded border border-amber-200 flex items-center justify-center gap-2">
+                 <AlertCircle size={14} />
+                 <span>Supabase keys missing. Using Demo Mode.</span>
+             </div>
+          )}
         </div>
+
+        {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
+                <AlertCircle size={16} />
+                {error}
+            </div>
+        )}
 
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (

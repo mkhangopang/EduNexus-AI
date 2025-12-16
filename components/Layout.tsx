@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { UserRole, AppView, User } from '../types';
+import { offlineService } from '../services/offlineService';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -14,7 +16,9 @@ import {
   Zap,
   TrendingUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -36,6 +40,38 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = async () => {
+        setIsOnline(true);
+        setIsSyncing(true);
+        try {
+            const count = await offlineService.syncPendingActions();
+            if (count > 0) {
+                console.log(`Synced ${count} items.`);
+            }
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+    
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check in case we reloaded while offline
+    if (navigator.onLine) {
+       handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const navItems = [
     { 
@@ -91,14 +127,29 @@ export const Layout: React.FC<LayoutProps> = ({
   const filteredNav = navItems.filter(item => item.roles.includes(user.role));
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+      
+      {/* Offline Indicator Banner */}
+      {!isOnline && (
+        <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white px-4 py-1 text-xs font-bold flex justify-center items-center gap-2 shadow-md">
+            <WifiOff size={14} />
+            Offline Mode Active - Changes will sync automatically when online.
+        </div>
+      )}
+      {isOnline && isSyncing && (
+        <div className="absolute top-0 left-0 right-0 z-[60] bg-emerald-600 text-white px-4 py-1 text-xs font-bold flex justify-center items-center gap-2 shadow-md animate-pulse">
+            <RefreshCw size={14} className="animate-spin" />
+            Syncing data...
+        </div>
+      )}
+
       {/* Sidebar Desktop */}
-      <aside className={`hidden md:flex flex-col bg-dark text-white border-r border-slate-800 transition-all duration-300 ease-in-out relative ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <aside className={`hidden md:flex flex-col bg-dark text-white border-r border-slate-800 transition-all duration-300 ease-in-out relative ${!isOnline || isSyncing ? 'pt-6' : ''} ${isCollapsed ? 'w-20' : 'w-64'}`}>
         
         {/* Collapse Toggle Button */}
         <button 
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="absolute -right-3 top-8 bg-slate-800 text-slate-400 hover:text-white border border-slate-700 rounded-full p-1 shadow-md z-50 hidden md:flex items-center justify-center hover:scale-110 transition-transform"
+            className={`absolute -right-3 top-8 bg-slate-800 text-slate-400 hover:text-white border border-slate-700 rounded-full p-1 shadow-md z-50 hidden md:flex items-center justify-center hover:scale-110 transition-transform ${!isOnline || isSyncing ? 'mt-6' : ''}`}
         >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -196,7 +247,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Mobile Header */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="md:hidden flex items-center justify-between bg-dark p-3 text-white shrink-0">
+        <header className={`md:hidden flex items-center justify-between bg-dark p-3 text-white shrink-0 ${!isOnline || isSyncing ? 'mt-6' : ''}`}>
            <div className="flex items-center gap-2">
              <Sparkles className="w-5 h-5 text-primary-500" />
              <span className="font-bold text-base">EduNexus</span>
@@ -241,7 +292,6 @@ export const Layout: React.FC<LayoutProps> = ({
         )}
 
         {/* Main Content Area */}
-        {/* Adjusted to remove padding for Chat view on mobile to maximize space */}
         <main className={`flex-1 bg-slate-50 transition-all duration-200 ${
             currentView === AppView.CHAT 
             ? 'p-0 md:p-6 overflow-hidden flex flex-col' 

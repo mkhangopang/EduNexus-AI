@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { ChatInterface } from './components/ChatInterface';
 import { ToolGrid } from './components/Tools';
@@ -9,9 +10,10 @@ import { Settings } from './components/Settings';
 import { PricingModal } from './components/PricingModal';
 import { AITrainingDashboard } from './components/AITrainingDashboard';
 import { Auth } from './components/Auth';
-import { UserRole, AppView, User } from './types';
-import { Brain, Upload, FileText, CheckCircle, Users, Activity, Clock, Lock, Infinity } from 'lucide-react';
+import { UserRole, AppView, User, Document } from './types';
+import { Brain, Upload, FileText, CheckCircle, Users, Activity, Clock, Lock, Infinity, WifiOff } from 'lucide-react';
 import { MASTER_PROMPT_SYSTEM_INSTRUCTION } from './services/geminiService';
+import { offlineService } from './services/offlineService';
 
 const mockUsers: Record<UserRole, User> = {
   [UserRole.APP_ADMIN]: {
@@ -54,6 +56,25 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [offlineDocs, setOfflineDocs] = useState<Document[]>([]);
+
+  // Initialize DB on load
+  useEffect(() => {
+    offlineService.init();
+  }, []);
+
+  // Attempt to load documents from IDB if network is questionable
+  useEffect(() => {
+      const fetchOfflineDocs = async () => {
+          try {
+              const docs = await offlineService.getDocuments();
+              setOfflineDocs(docs);
+          } catch (e) {
+              console.error("Failed to load offline docs", e);
+          }
+      };
+      fetchOfflineDocs();
+  }, [currentView]);
 
   // If no user is logged in, show Auth screen
   if (!currentUser) {
@@ -250,10 +271,19 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (currentView === AppView.EDITOR && activeDocId) {
+      // Logic: if docId is 'recent', try to find last modified from offlineDocs
+      let content = initialDocContent;
+      
+      // Check offline cache for this specific doc
+      const cached = offlineDocs.find(d => d.id === activeDocId);
+      if (cached && cached.content) {
+          content = cached.content;
+      }
+
       return (
         <LiveEditor
           documentId={activeDocId}
-          initialContent={initialDocContent}
+          initialContent={content}
           currentUser={currentUser}
           onBack={() => setCurrentView(AppView.DASHBOARD)}
         />
@@ -291,8 +321,12 @@ const App: React.FC = () => {
                     )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Render standard docs, mixed with offline queue status */}
                     {[1,2,3].map(i => {
                         const isLocked = currentUser.plan === 'free' && i > 1;
+                        // Check if this doc is available offline
+                        const isCached = offlineDocs.some(d => d.id === i.toString());
+                        
                         return (
                             <div 
                                 key={i} 
@@ -311,8 +345,16 @@ const App: React.FC = () => {
                                         <span className="text-xs font-bold text-slate-500">Upgrade to Open</span>
                                     </div>
                                 )}
-                                <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-4 text-indigo-600">
-                                    <FileText size={24} />
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                                        <FileText size={24} />
+                                    </div>
+                                    {isCached && !navigator.onLine && (
+                                        <div className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center gap-1">
+                                            <WifiOff size={10} />
+                                            Available Offline
+                                        </div>
+                                    )}
                                 </div>
                                 <h3 className="font-bold text-lg text-slate-800 mb-2">Science Curriculum Unit {i}</h3>
                                 <p className="text-sm text-slate-500 mb-4">Last modified 2 hours ago by You</p>

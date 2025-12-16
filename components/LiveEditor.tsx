@@ -4,7 +4,6 @@ import { realtime } from '../services/realtimeService';
 import { offlineService } from '../services/offlineService';
 import { Collaborator, Document } from '../types';
 import { CollaboratorHeader } from './CollaboratorHeader';
-import { Loader2, WifiOff } from 'lucide-react';
 
 interface LiveEditorProps {
     documentId: string;

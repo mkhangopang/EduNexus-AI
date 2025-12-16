@@ -1,9 +1,9 @@
+
 import React from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line 
+  PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
-import { AlertCircle, CheckCircle, Brain, Target, MessageSquare, ThumbsUp, ThumbsDown, ArrowUpRight, BrainCircuit } from 'lucide-react';
+import { AlertCircle, CheckCircle, Brain, Target, MessageSquare, ArrowUpRight, BrainCircuit } from 'lucide-react';
 
 const queryTypeData = [
   { name: 'Rubric Generation', value: 35 },
@@ -103,7 +103,7 @@ export const AITrainingDashboard: React.FC = () => {
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
-                                        {queryTypeData.map((entry, index) => (
+                                        {queryTypeData.map((_entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>

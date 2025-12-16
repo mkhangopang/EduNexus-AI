@@ -1,6 +1,14 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
+// Declare process to satisfy TypeScript compiler
+declare const process: {
+  env: {
+    API_KEY?: string;
+    [key: string]: string | undefined;
+  }
+};
+
 // Initialize the API client
 // Note: In a real production app, this key should be proxy-served or strictly env-managed.
 const apiKey = process.env.API_KEY || ''; 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppView, User } from '../types';
 import { offlineService } from '../services/offlineService';
@@ -11,16 +10,12 @@ import {
   Settings, 
   BrainCircuit, 
   Users, 
-  Menu,
   Sparkles,
-  LogOut,
-  Zap,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
   WifiOff,
   RefreshCw,
-  Bell
+  TrendingUp
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -36,11 +31,8 @@ export const Layout: React.FC<LayoutProps> = ({
   children, 
   user, 
   currentView, 
-  onChangeView,
-  onLogout,
-  onOpenUpgrade
+  onChangeView
 }) => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -82,7 +74,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 },
                 onProcessAI: async (payload) => {
                     // Logic to process queued AI requests
-                    // In a real app, you might save this result to a database or message history
                     try {
                         const response = await generateAIResponse(payload.prompt, payload.context);
                         setNotification({
@@ -270,108 +261,44 @@ export const Layout: React.FC<LayoutProps> = ({
             {!isCollapsed ? (
                 <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-center relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Zap size={64} />
+                        <Sparkles className="text-white w-12 h-12 -mr-2 -mt-2" />
                     </div>
-                    <h3 className="font-bold text-white mb-1 truncate">
-                        {user.plan === 'enterprise' ? 'Manage Plan' : 'Upgrade Plan'}
-                    </h3>
-                    <p className="text-xs text-indigo-100 mb-3 truncate">
-                        {user.plan === 'enterprise' ? 'Manage seats & billing.' : 'Get unlimited AI.'}
-                    </p>
-                    <button 
-                        onClick={onOpenUpgrade}
-                        className="w-full py-2 bg-white text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
-                    >
-                        View Pricing
+                    <h3 className="font-bold text-white mb-1 text-sm">Pro Features</h3>
+                    <p className="text-indigo-100 text-xs mb-3">Unlock advanced AI models</p>
+                    <button className="w-full py-2 bg-white text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors shadow-sm">
+                        Upgrade Now
                     </button>
                 </div>
             ) : (
-                <button 
-                    onClick={onOpenUpgrade}
-                    title="Upgrade Plan"
-                    className="w-full flex justify-center items-center p-3 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 text-white hover:opacity-90 transition-all"
-                >
-                    <Zap size={20} />
+                <button className="w-full p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg text-white flex justify-center items-center hover:opacity-90 transition-opacity" title="Upgrade">
+                    <Sparkles size={20} />
                 </button>
             )}
         </div>
-
-        <div className="p-4 border-t border-slate-800">
-          <div className={`flex items-center gap-3 mb-4 transition-all ${isCollapsed ? 'justify-center' : ''}`}>
-            <img src={user.avatar} alt="User" className="w-8 h-8 rounded-full bg-slate-700 shrink-0" />
-            {!isCollapsed && (
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                  <p className="text-xs text-slate-500 truncate capitalize">{user.plan} Plan</p>
-                </div>
-            )}
-          </div>
-          <button 
-            onClick={onLogout}
-            title={isCollapsed ? "Sign Out" : ""}
-            className={`flex items-center w-full py-2 text-sm text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-md transition-all ${isCollapsed ? 'justify-center px-0' : 'px-4'}`}
-          >
-            <LogOut className={`w-4 h-4 shrink-0 ${isCollapsed ? '' : 'mr-3'}`} />
-            {!isCollapsed && <span className="truncate">Sign Out</span>}
-          </button>
-        </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className={`md:hidden flex items-center justify-between bg-dark p-3 text-white shrink-0 ${!isOnline || isSyncing ? 'mt-6' : ''}`}>
-           <div className="flex items-center gap-2">
-             <Sparkles className="w-5 h-5 text-primary-500" />
-             <span className="font-bold text-base">EduNexus</span>
-           </div>
-           <button onClick={() => setIsMobileOpen(!isMobileOpen)}>
-             <Menu className="w-5 h-5" />
-           </button>
-        </header>
-
-        {/* Mobile Menu Overlay */}
-        {isMobileOpen && (
-          <div className="md:hidden absolute top-14 left-0 right-0 z-50 bg-dark border-b border-slate-800 p-4 shadow-xl">
-             {filteredNav.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => {
-                  onChangeView(item.view);
-                  setIsMobileOpen(false);
-              }}
-              className={`flex items-center w-full px-4 py-3 mb-1 text-sm font-medium rounded-lg transition-colors ${
-                currentView === item.view 
-                  ? 'bg-primary-600 text-white' 
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <item.icon className="w-5 h-5 mr-3" />
-              {item.label}
-            </button>
-          ))}
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 relative">
           
-          <button 
-            onClick={() => {
-                onOpenUpgrade();
-                setIsMobileOpen(false);
-            }}
-            className="flex items-center w-full px-4 py-3 mb-1 text-sm font-medium rounded-lg bg-indigo-600 text-white"
-          >
-            <Zap className="w-5 h-5 mr-3" />
-            {user.plan === 'enterprise' ? 'Manage Plan' : 'Upgrade Plan'}
-          </button>
-          </div>
-        )}
+          {/* Mobile Header */}
+          <header className="md:hidden h-16 bg-dark text-white flex items-center justify-between px-4 shrink-0">
+             <div className="flex items-center gap-2">
+                 <div className="bg-primary-600 p-1.5 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-white" />
+                 </div>
+                 <h1 className="font-bold text-lg">EduNexus</h1>
+             </div>
+             <button className="p-2" onClick={() => {}}>
+                 <Settings size={24} />
+             </button>
+          </header>
 
-        {/* Main Content Area */}
-        <main className={`flex-1 bg-slate-50 transition-all duration-200 ${
-            currentView === AppView.CHAT 
-            ? 'p-0 md:p-6 overflow-hidden flex flex-col' 
-            : 'p-4 md:p-6 overflow-auto'
-        }`}>
-          {children}
-        </main>
-      </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+             <div className="max-w-7xl mx-auto h-full p-4 md:p-6 lg:p-8">
+                 {children}
+             </div>
+          </div>
+      </main>
     </div>
   );
 };

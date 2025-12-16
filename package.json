@@ -1,3 +1,4 @@
+
 {
   "name": "edunexus-ai",
   "private": true,
@@ -11,7 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.33.0",
     "@supabase/supabase-js": "^2.39.7",
-    "lucide-react": "^0.344.0",
+    "lucide-react": "^0.450.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.12.0"

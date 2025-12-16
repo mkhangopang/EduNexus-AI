@@ -1,14 +1,23 @@
-
 import { createClient } from '@supabase/supabase-js';
 
-// Access environment variables using standard Vite import.meta.env
-// Use a safe access pattern: default to empty object if env is undefined
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL;
-const supabaseKey = env.VITE_SUPABASE_ANON_KEY;
+// Safe access to environment variables in Vite
+const getEnvVar = (key: string) => {
+  try {
+    // Check if import.meta.env exists (standard Vite)
+    const meta = import.meta as any;
+    if (meta && meta.env) {
+      return meta.env[key] || '';
+    }
+  } catch (e) {
+    console.warn('Error accessing import.meta.env', e);
+  }
+  return '';
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 // Create a single supabase client for interacting with your database
-// We provide fallback values to prevent crash on initialization, but connection will fail if invalid.
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder-url.supabase.co', 
   supabaseKey || 'placeholder-key'

@@ -11,8 +11,7 @@ import { PricingModal } from './components/PricingModal';
 import { AITrainingDashboard } from './components/AITrainingDashboard';
 import { Auth } from './components/Auth';
 import { UserRole, AppView, User, Document, AITool } from './types';
-import { Brain, Upload, FileText, CheckCircle, Users, Activity, Clock, Lock, Infinity, WifiOff, X, BookOpen } from 'lucide-react';
-import { MASTER_PROMPT_SYSTEM_INSTRUCTION } from './services/geminiService';
+import { Brain, Upload, FileText, Users, Activity, Clock, Lock, Infinity, WifiOff, X, BookOpen } from 'lucide-react';
 import { offlineService } from './services/offlineService';
 
 const mockUsers: Record<UserRole, User> = {
@@ -108,12 +107,6 @@ const App: React.FC = () => {
       setCurrentView(AppView.EDITOR);
   };
 
-  const handleSetContext = (doc: Document) => {
-      setActiveDocument(doc);
-      // Automatically switch to chat if context is set from dashboard
-      // setCurrentView(AppView.CHAT); // Optional: depends on UX preference.
-  };
-
   const handleSimulateUpload = () => {
       setIsUploading(true);
       setTimeout(() => {
@@ -146,11 +139,10 @@ const App: React.FC = () => {
       alert(`Successfully upgraded to ${newPlan.toUpperCase()}!`);
   };
 
-  const handleLaunchTool = (tool: AITool, contextContent: string) => {
+  const handleLaunchTool = (tool: AITool, _contextContent: string) => {
       // Logic to switch to chat and pre-fill input with the prompt
       setCurrentView(AppView.CHAT);
       // In a real implementation, we would pass the prompt to the Chat component via props or context
-      // For this demo, we rely on the user knowing they are in the chat now, or we could set a transient state
       console.log(`Launching ${tool.name} with context`);
       // Simulating a system message or user prompt injection
       alert(`Tool launched! The AI will now use the active curriculum to: ${tool.name}`);

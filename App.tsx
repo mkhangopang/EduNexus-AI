@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { ChatInterface } from './components/ChatInterface';
 import { ToolGrid } from './components/Tools';
@@ -38,30 +38,6 @@ const mockUsers: Record<UserRole, User> = {
   }
 };
 
-const SAMPLE_CURRICULUM = `
-Title: Advanced Biology: Genetics & Heredity
-Grade Level: 9-10
-Subject: Science / Biology
-
-Unit Overview:
-This unit covers the fundamental principles of genetics, including Mendelian inheritance, DNA structure and function, and modern genetic engineering.
-
-Key Learning Objectives (SLOs):
-1. Students will analyze how biological traits are passed on to successive generations.
-2. Students will use Punnett squares to predict the probability of traits.
-3. Students will construct an explanation based on evidence for how the structure of DNA determines the structure of proteins.
-
-Core Content:
-- Section 1: DNA Structure (Double Helix, Nucleotides, Base Pairing)
-- Section 2: Mitosis vs Meiosis (Process and Outcomes)
-- Section 3: Patterns of Inheritance (Dominant/Recessive, Incomplete Dominance)
-- Section 4: Genetic Disorders and Bioethics.
-
-Assessment Standards:
-- NGSS HS-LS3-1
-- NGSS HS-LS3-2
-`;
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
@@ -73,6 +49,7 @@ const App: React.FC = () => {
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [offlineDocs, setOfflineDocs] = useState<Document[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize DB on load
   useEffect(() => {
@@ -84,7 +61,7 @@ const App: React.FC = () => {
       const fetchOfflineDocs = async () => {
           try {
               const docs = await offlineService.getDocuments();
-              setOfflineDocs(docs);
+              setOfflineDocs(docs.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()));
           } catch (e) {
               console.error("Failed to load offline docs", e);
           }
@@ -98,54 +75,97 @@ const App: React.FC = () => {
   }
 
   const handleOpenDocumentInEditor = (docId: string) => {
-      // Feature Gate: Free users only 1 doc
-      if (currentUser.plan === 'free' && docId !== '1' && docId !== 'recent') {
-          setIsPricingOpen(true);
-          return;
+      // Feature Gate: Free users only limited access
+      if (currentUser.plan === 'free' && docId !== 'recent' && !offlineDocs.find(d => d.id === docId)) {
+          // Allow opening if it's in their offline docs (uploaded by them), otherwise check limits
+          // For this demo, we'll be lenient with uploaded docs
       }
+      
+      const doc = offlineDocs.find(d => d.id === docId);
+      if (doc) {
+          setActiveDocument(doc);
+      }
+      
       setEditingDocId(docId);
       setCurrentView(AppView.EDITOR);
   };
 
-  const handleSimulateUpload = () => {
-      setIsUploading(true);
-      setTimeout(() => {
-          const newDoc: Document = {
-              id: 'curr_' + Date.now(),
-              name: 'Biology_Unit4_Genetics.docx',
-              type: 'docx',
-              size: '2.4MB',
-              uploadedAt: new Date().toISOString(),
-              status: 'processed',
-              content: SAMPLE_CURRICULUM,
-              lastModifiedBy: currentUser.id,
-              subject: 'Biology',
-              gradeLevel: '9th Grade',
-              summary: 'Genetics, DNA, and Heredity unit.'
-          };
-          
-          setActiveDocument(newDoc);
-          setEditingDocId(newDoc.id); // Also open it for editing
-          setIsUploading(false);
-          // Show chat or editor? Let's show chat to demonstrate personalization
-          setCurrentView(AppView.CHAT);
-      }, 1500);
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+        let content = '';
+        let subject = 'General';
+
+        // CLIENT-SIDE TEXT EXTRACTION
+        // Note: In a real production app, you would send the file to a backend (Supabase Storage)
+        // and use a server function to extract text from PDF/DOCX using libraries like pdf-parse.
+        // Here, we support .txt/.md natively, and provide a placeholder for binaries.
+        
+        if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+            content = await file.text();
+            subject = 'Text Document';
+        } else {
+            // Fallback for PDF/DOCX in pure browser mode
+            // We simulate "processing" but can't read the binary content easily without heavy libs
+            content = `[System Message: The file '${file.name}' was uploaded successfully.]\n\nNote: As this is a browser-only demo environment without a backend processing server, we cannot extract the full text from PDF/DOCX files automatically yet. \n\nPlease treat this as a placeholder. You can copy-paste your curriculum text here to use the AI features.`;
+            subject = 'Uploaded File';
+        }
+
+        // Mock delay for "Processing" feel
+        await new Promise(r => setTimeout(r, 800));
+
+        const newDoc: Document = {
+            id: crypto.randomUUID(),
+            name: file.name,
+            type: file.name.split('.').pop() as any || 'txt',
+            size: (file.size / 1024).toFixed(1) + 'KB',
+            uploadedAt: new Date().toISOString(),
+            status: 'processed',
+            content: content,
+            lastModifiedBy: currentUser.id,
+            subject: subject,
+            gradeLevel: 'Unspecified',
+            summary: `Uploaded ${file.name}`
+        };
+
+        // Persist to Offline DB
+        await offlineService.saveDocument(newDoc);
+        
+        // Update State
+        setOfflineDocs(prev => [newDoc, ...prev]);
+        setActiveDocument(newDoc);
+        setEditingDocId(newDoc.id); // Open for viewing
+        
+        // Ask AI about it
+        setCurrentView(AppView.CHAT);
+
+    } catch (error) {
+        console.error("Upload failed", error);
+        alert("Failed to read file.");
+    } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleUpgrade = (newPlan: 'free' | 'pro' | 'enterprise') => {
       setCurrentUser(prev => prev ? ({ ...prev, plan: newPlan }) : null);
       setIsPricingOpen(false);
-      // In a real app, this would trigger Stripe/payment flow
       alert(`Successfully upgraded to ${newPlan.toUpperCase()}!`);
   };
 
   const handleLaunchTool = (tool: AITool, _contextContent: string) => {
-      // Logic to switch to chat and pre-fill input with the prompt
       setCurrentView(AppView.CHAT);
-      // In a real implementation, we would pass the prompt to the Chat component via props or context
-      console.log(`Launching ${tool.name} with context`);
-      // Simulating a system message or user prompt injection
-      alert(`Tool launched! The AI will now use the active curriculum to: ${tool.name}`);
+      // In a real implementation, we would pass the prompt intent to the Chat component
+      console.log(`Launching ${tool.name}`);
   };
 
   const renderDashboard = () => {
@@ -209,22 +229,23 @@ const App: React.FC = () => {
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <h3 className="font-semibold text-slate-700 mb-4">Recent Documents</h3>
                     <div className="space-y-3">
-                        {[1,2,3].map(i => (
+                        {offlineDocs.slice(0, 3).map((doc) => (
                             <div 
-                                key={i} 
-                                onClick={() => handleOpenDocumentInEditor(i.toString())}
+                                key={doc.id} 
+                                onClick={() => handleOpenDocumentInEditor(doc.id)}
                                 className="flex items-center justify-between p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
                                     <FileText className="text-slate-400" size={20} />
                                     <div>
-                                        <p className="text-sm font-medium">Science_Curriculum_v{i}.pdf</p>
-                                        <p className="text-xs text-slate-500">Added by Mrs. Krabappel</p>
+                                        <p className="text-sm font-medium">{doc.name}</p>
+                                        <p className="text-xs text-slate-500">{doc.size} • {new Date(doc.uploadedAt).toLocaleDateString()}</p>
                                     </div>
                                 </div>
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Processed</span>
                             </div>
                         ))}
+                        {offlineDocs.length === 0 && <p className="text-sm text-slate-400 italic">No documents yet.</p>}
                     </div>
                 </div>
              </div>
@@ -246,12 +267,12 @@ const App: React.FC = () => {
                     </p>
                     <div className="flex gap-4">
                         <button 
-                            onClick={handleSimulateUpload}
+                            onClick={handleUploadClick}
                             disabled={isUploading}
                             className="bg-white text-indigo-600 px-6 py-2 rounded-lg font-semibold hover:bg-indigo-50 transition-colors flex items-center gap-2"
                         >
                             {isUploading ? <Activity className="animate-spin" size={18} /> : <Upload size={18} />}
-                            {isUploading ? 'Analyzing...' : 'Upload Curriculum'}
+                            {isUploading ? 'Reading File...' : 'Upload Curriculum'}
                         </button>
                         <button 
                             onClick={() => setCurrentView(AppView.AI_TOOLS)}
@@ -303,16 +324,22 @@ const App: React.FC = () => {
                             )}
                         </div>
 
-                         <div 
-                             onClick={() => handleOpenDocumentInEditor('recent')}
-                             className="flex items-center justify-between p-4 bg-slate-50 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors group"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="bg-green-100 p-2 rounded-lg text-green-600"><Clock size={20}/></div>
-                                <span className="text-sm font-medium group-hover:text-indigo-700">Recent Draft</span>
+                         {offlineDocs.length > 0 && (
+                            <div 
+                                onClick={() => handleOpenDocumentInEditor(offlineDocs[0].id)}
+                                className="flex items-center justify-between p-4 bg-slate-50 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-green-100 p-2 rounded-lg text-green-600"><Clock size={20}/></div>
+                                    <div className="overflow-hidden">
+                                        <span className="text-sm font-medium group-hover:text-indigo-700 truncate block max-w-[120px]">
+                                            {offlineDocs[0].name}
+                                        </span>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-medium text-slate-500">Edit &rarr;</span>
                             </div>
-                            <span className="text-xs font-medium text-slate-500">Edit &rarr;</span>
-                        </div>
+                         )}
                     </div>
                  </div>
              </div>
@@ -323,14 +350,10 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (currentView === AppView.EDITOR && editingDocId) {
-      // Logic: if docId is 'recent', try to find last modified from offlineDocs
-      let content = activeDocument && activeDocument.id === editingDocId ? activeDocument.content! : `Title: Unit 3 - The Industrial Revolution\n\n...`;
-      
-      // Check offline cache for this specific doc
-      const cached = offlineDocs.find(d => d.id === editingDocId);
-      if (cached && cached.content) {
-          content = cached.content;
-      }
+      // Find the document content
+      const doc = offlineDocs.find(d => d.id === editingDocId);
+      const content = doc ? (doc.content || '') : '';
+      const docName = doc ? doc.name : 'Untitled';
 
       return (
         <LiveEditor
@@ -370,7 +393,7 @@ const App: React.FC = () => {
                     <h2 className="text-2xl font-bold text-slate-800">My Documents</h2>
                     <div className="flex gap-3">
                          <button 
-                            onClick={handleSimulateUpload}
+                            onClick={handleUploadClick}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2"
                         >
                             {isUploading ? <Activity className="animate-spin" size={16} /> : <Upload size={16} />}
@@ -378,51 +401,55 @@ const App: React.FC = () => {
                         </button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Render standard docs, mixed with offline queue status */}
-                    {[1,2,3].map(i => {
-                        const isLocked = currentUser.plan === 'free' && i > 1;
-                        // Check if this doc is available offline
-                        const isCached = offlineDocs.some(d => d.id === i.toString());
-                        
-                        return (
-                            <div 
-                                key={i} 
-                                onClick={() => handleOpenDocumentInEditor(i.toString())}
-                                className={`p-6 rounded-xl border shadow-sm transition-all relative ${
-                                    isLocked 
-                                    ? 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-75' 
-                                    : 'bg-white border-slate-200 cursor-pointer hover:shadow-md hover:border-indigo-200'
-                                }`}
-                            >
-                                {isLocked && (
-                                    <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex flex-col items-center justify-center z-10 rounded-xl">
-                                        <div className="bg-white p-2 rounded-full shadow-sm mb-2">
-                                            <Lock size={20} className="text-slate-400" />
+                
+                {offlineDocs.length === 0 ? (
+                    <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                        <h3 className="text-lg font-medium text-slate-900">No documents yet</h3>
+                        <p className="text-slate-500 mt-1 mb-6">Upload a curriculum file to get started.</p>
+                        <button 
+                            onClick={handleUploadClick}
+                            className="bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50"
+                        >
+                            Select File
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {offlineDocs.map(doc => {
+                            // Check if this doc is available offline (it always is in this implementation)
+                            const isCached = true; 
+                            
+                            return (
+                                <div 
+                                    key={doc.id} 
+                                    onClick={() => handleOpenDocumentInEditor(doc.id)}
+                                    className={`p-6 rounded-xl border shadow-sm transition-all relative bg-white border-slate-200 cursor-pointer hover:shadow-md hover:border-indigo-200`}
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                                            <FileText size={24} />
                                         </div>
-                                        <span className="text-xs font-bold text-slate-500">Upgrade to Open</span>
+                                        {isCached && !navigator.onLine && (
+                                            <div className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center gap-1">
+                                                <WifiOff size={10} />
+                                                Available Offline
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                                        <FileText size={24} />
+                                    <h3 className="font-bold text-lg text-slate-800 mb-2 truncate" title={doc.name}>{doc.name}</h3>
+                                    <p className="text-sm text-slate-500 mb-4">
+                                        {doc.size} • {new Date(doc.uploadedAt).toLocaleDateString()}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">Processed</span>
+                                        {doc.subject && <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded">{doc.subject}</span>}
                                     </div>
-                                    {isCached && !navigator.onLine && (
-                                        <div className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center gap-1">
-                                            <WifiOff size={10} />
-                                            Available Offline
-                                        </div>
-                                    )}
                                 </div>
-                                <h3 className="font-bold text-lg text-slate-800 mb-2">Science Curriculum Unit {i}</h3>
-                                <p className="text-sm text-slate-500 mb-4">Last modified 2 hours ago by You</p>
-                                <div className="flex gap-2">
-                                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">Draft</span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
              </div>
         )
     }
@@ -457,15 +484,24 @@ const App: React.FC = () => {
         onUpgrade={handleUpgrade}
       />
       
+      {/* Hidden File Input for Real Uploads */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept=".txt,.md,.json,.csv" // In a real app we'd accept .pdf,.docx but parsing is backend only
+        onChange={handleFileSelect}
+      />
+
       {/* Active Context Banner */}
       {activeDocument && (
           <div className="bg-indigo-600 text-white px-4 py-2 flex justify-between items-center shadow-md relative z-20">
-              <div className="flex items-center gap-2">
-                  <BookOpen size={16} className="text-indigo-200" />
-                  <span className="text-sm font-medium">Active Curriculum Context: <span className="font-bold text-white">{activeDocument.name}</span></span>
-                  <span className="text-xs bg-indigo-500 px-2 py-0.5 rounded text-indigo-100 ml-2">{activeDocument.subject}</span>
+              <div className="flex items-center gap-2 overflow-hidden">
+                  <BookOpen size={16} className="text-indigo-200 shrink-0" />
+                  <span className="text-sm font-medium truncate">Active Context: <span className="font-bold text-white">{activeDocument.name}</span></span>
+                  <span className="text-xs bg-indigo-500 px-2 py-0.5 rounded text-indigo-100 ml-2 hidden md:inline">{activeDocument.subject}</span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-3 shrink-0">
                   <button 
                     onClick={() => setCurrentView(AppView.CHAT)}
                     className="text-xs bg-white text-indigo-600 px-2 py-1 rounded font-bold hover:bg-indigo-50"

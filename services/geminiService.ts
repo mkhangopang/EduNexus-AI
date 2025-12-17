@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Declare process to satisfy TypeScript compiler
 declare const process: {
@@ -10,8 +10,8 @@ declare const process: {
 };
 
 // Initialize the API client
-const apiKey = process.env.API_KEY || ''; 
-const ai = new GoogleGenAI({ apiKey });
+const apiKey = process.env.API_KEY || '';
+const ai = new GoogleGenerativeAI(apiKey);
 
 export const DEFAULT_SYSTEM_INSTRUCTION = `
 ===================================================================
@@ -144,18 +144,16 @@ export const generateAIResponse = async (
       Use the provided ACTIVE CURRICULUM CONTEXT as the primary source of truth. Tailor all output to the subject matter, grade level, and specific content found in the context.
       `;
   }
-
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: finalPrompt,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.7, // Balanced creativity and precision
-      }
-    });
+    const model = ai.getGenerativeModel({ model: modelName, systemInstruction, generationConfig: { temperature: 0.7 } });
+    const result = await model.generateContent(finalPrompt as any);
 
-    return response.text || "No response text generated.";
+    const candidates = result?.response?.candidates;
+    if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts) {
+      const text = candidates[0].content.parts.map((p: any) => p.text || '').join('');
+      return text || "No response text generated.";
+    }
+    return "No response text generated.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "I encountered an error processing your pedagogical request. Please try again.";

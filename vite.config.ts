@@ -18,5 +18,23 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 3000
     }
+    ,
+    build: {
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+              if (id.includes('@supabase') || id.includes('realtime') ) return 'vendor-supabase';
+              if (id.includes('@google/generative-ai') || id.includes('@google/genai')) return 'vendor-genai';
+              if (id.includes('recharts')) return 'vendor-charts';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+              return 'vendor-others';
+            }
+          }
+        }
+      }
+    }
   };
 });

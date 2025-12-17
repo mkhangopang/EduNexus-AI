@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { 
   PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { AlertCircle, CheckCircle, Brain, Target, MessageSquare, ArrowUpRight, BrainCircuit } from 'lucide-react';
+const AdminCharts = React.lazy(() => import('./DashboardCharts'));
 
 const queryTypeData = [
   { name: 'Rubric Generation', value: 35 },

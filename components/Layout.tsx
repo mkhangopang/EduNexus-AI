@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { UserRole, AppView, User } from '../types';
 import { offlineService } from '../services/offlineService';
 import { generateAIResponse } from '../services/geminiService';
+const DashboardCharts = React.lazy(() => import('./DashboardCharts'));
 import { 
   LayoutDashboard, 
   FileText, 
@@ -17,6 +18,7 @@ import {
   RefreshCw,
   TrendingUp
 } from 'lucide-react';
+
 
 interface LayoutProps {
   children: React.ReactNode;

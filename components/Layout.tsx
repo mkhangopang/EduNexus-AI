@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import EnvDebug from './EnvDebug';
 import { UserRole, AppView, User } from '../types';
 import { offlineService } from '../services/offlineService';
 import { generateAIResponse } from '../services/geminiService';
@@ -296,9 +297,12 @@ export const Layout: React.FC<LayoutProps> = ({
           </header>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-             <div className="max-w-7xl mx-auto h-full p-4 md:p-6 lg:p-8">
-                 {children}
-             </div>
+                  <div className="max-w-7xl mx-auto h-full p-4 md:p-6 lg:p-8">
+                    {children}
+                  </div>
+                  {typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug') && (
+                    <EnvDebug />
+                  )}
           </div>
       </main>
     </div>

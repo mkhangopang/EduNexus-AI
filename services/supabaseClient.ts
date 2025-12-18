@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 // Safe access to environment variables in Vite
@@ -16,6 +17,9 @@ const getEnvVar = (key: string) => {
 
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+
+// The public URL of your deployed application
+export const APP_URL = getEnvVar('VITE_APP_URL') || window.location.origin;
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(

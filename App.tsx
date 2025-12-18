@@ -1,13 +1,11 @@
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
-const LazyChatInterface = React.lazy(() => import('./components/ChatInterface').then(m => ({ default: m.ChatInterface })));
+import { ChatInterface } from './components/ChatInterface';
 import { ToolGrid } from './components/Tools';
-const LazyUsageChart = React.lazy(() => import('./components/DashboardCharts').then(m => ({ default: m.UsageChart })));
-const LazyAdminTrainingChart = React.lazy(() => import('./components/DashboardCharts').then(m => ({ default: m.AdminTrainingChart })));
-const LazyUserDistributionChart = React.lazy(() => import('./components/DashboardCharts').then(m => ({ default: m.UserDistributionChart })));
-const LazyLiveEditor = React.lazy(() => import('./components/LiveEditor').then(m => ({ default: m.LiveEditor })));
-const LazyBrainControl = React.lazy(() => import('./components/BrainControl').then(m => ({ default: m.BrainControl })));
+import { UsageChart, AdminTrainingChart, UserDistributionChart } from './components/DashboardCharts';
+import { LiveEditor } from './components/LiveEditor';
+import { BrainControl } from './components/BrainControl';
 import { Settings } from './components/Settings';
 import { PricingModal } from './components/PricingModal';
 import { AITrainingDashboard } from './components/AITrainingDashboard';
@@ -164,11 +162,9 @@ const App: React.FC = () => {
                       <h3 className="text-2xl font-bold">12,450</h3>
                    </div>
                 </div>
-                                <div className="h-48">
-                                        <Suspense fallback={<div className="h-48" /> }>
-                                            <LazyUserDistributionChart />
-                                        </Suspense>
-                                </div>
+                <div className="h-48">
+                    <UserDistributionChart />
+                </div>
               </div>
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                  <div className="flex items-center gap-4 mb-4">
@@ -178,11 +174,9 @@ const App: React.FC = () => {
                       <h3 className="text-2xl font-bold">94.2%</h3>
                    </div>
                 </div>
-                                <div className="h-48">
-                                        <Suspense fallback={<div className="h-48" /> }>
-                                            <LazyAdminTrainingChart />
-                                        </Suspense>
-                                </div>
+                <div className="h-48">
+                    <AdminTrainingChart />
+                </div>
               </div>
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-4 mb-4">
@@ -207,9 +201,7 @@ const App: React.FC = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <h3 className="font-semibold text-slate-700 mb-4">Team Usage Activity</h3>
-                                        <Suspense fallback={<div className="h-48" /> }>
-                                            <LazyUsageChart />
-                                        </Suspense>
+                    <UsageChart />
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <h3 className="font-semibold text-slate-700 mb-4">Recent Documents</h3>
@@ -275,9 +267,7 @@ const App: React.FC = () => {
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-slate-800">Weekly Activity</h3>
                     </div>
-                                        <Suspense fallback={<div style={{height: 300}}/>}>
-                                            <LazyUsageChart />
-                                        </Suspense>
+                    <UsageChart />
                  </div>
                  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
@@ -332,31 +322,27 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-        if (currentView === AppView.EDITOR && editingDocId) {
+    if (currentView === AppView.EDITOR && editingDocId) {
       const doc = offlineDocs.find(d => d.id === editingDocId);
       const content = doc ? (doc.content || '') : '';
 
       return (
-                <Suspense fallback={<div className="min-h-[400px]" /> }>
-                    <LazyLiveEditor
-                        documentId={editingDocId}
-                        initialContent={content}
-                        currentUser={currentUser}
-                        onBack={() => setCurrentView(AppView.DASHBOARD)}
-                    />
-                </Suspense>
+        <LiveEditor
+          documentId={editingDocId}
+          initialContent={content}
+          currentUser={currentUser}
+          onBack={() => setCurrentView(AppView.DASHBOARD)}
+        />
       );
     }
 
-        if (currentView === AppView.CHAT) {
-            return (
-                <div className="h-full w-full">
-                    <Suspense fallback={<div className="min-h-[300px]" />}>
-                        <LazyChatInterface activeDocument={activeDocument} />
-                    </Suspense>
-                </div>
-            );
-        }
+    if (currentView === AppView.CHAT) {
+      return (
+        <div className="h-full w-full">
+          <ChatInterface activeDocument={activeDocument} />
+        </div>
+      );
+    }
 
     if (currentView === AppView.AI_TOOLS) {
         return (
@@ -434,13 +420,9 @@ const App: React.FC = () => {
         )
     }
 
-        if (currentView === AppView.BRAIN_CONTROL) {
-                return (
-                    <Suspense fallback={<div />}>
-                        <LazyBrainControl />
-                    </Suspense>
-                );
-        }
+    if (currentView === AppView.BRAIN_CONTROL) {
+        return <BrainControl />;
+    }
 
     if (currentView === AppView.AI_TRAINING) {
         return <AITrainingDashboard />;

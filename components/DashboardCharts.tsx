@@ -1,5 +1,4 @@
 
-import React from 'react';
 import {
   BarChart,
   Bar,
@@ -90,11 +89,3 @@ export const UserDistributionChart = () => {
       </ResponsiveContainer>
     );
   };
-
-  export default function ChartsWrapper() {
-    return (
-      <div>
-        <UsageChart />
-      </div>
-    );
-  }

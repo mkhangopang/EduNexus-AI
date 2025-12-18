@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User as UserIcon, Loader2, Sparkles, Paperclip, FileText, WifiOff, Clock, BookOpen, X } from 'lucide-react';
 import { generateAIResponse } from '../services/geminiService';
 import { ChatMessage, Document } from '../types';

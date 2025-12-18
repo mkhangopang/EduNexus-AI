@@ -1,9 +1,7 @@
-import React, { useState, useEffect, Suspense } from 'react';
-import EnvDebug from './EnvDebug';
+import React, { useState, useEffect } from 'react';
 import { UserRole, AppView, User } from '../types';
 import { offlineService } from '../services/offlineService';
 import { generateAIResponse } from '../services/geminiService';
-const DashboardCharts = React.lazy(() => import('./DashboardCharts'));
 import { 
   LayoutDashboard, 
   FileText, 
@@ -19,7 +17,6 @@ import {
   RefreshCw,
   TrendingUp
 } from 'lucide-react';
-
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -297,12 +294,9 @@ export const Layout: React.FC<LayoutProps> = ({
           </header>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                  <div className="max-w-7xl mx-auto h-full p-4 md:p-6 lg:p-8">
-                    {children}
-                  </div>
-                  {typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug') && (
-                    <EnvDebug />
-                  )}
+             <div className="max-w-7xl mx-auto h-full p-4 md:p-6 lg:p-8">
+                 {children}
+             </div>
           </div>
       </main>
     </div>

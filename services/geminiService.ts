@@ -1,17 +1,8 @@
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-// Declare process to satisfy TypeScript compiler
-declare const process: {
-  env: {
-    API_KEY?: string;
-    [key: string]: string | undefined;
-  }
-};
-
-// Initialize the API client
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenerativeAI(apiKey);
+// Initialize the API client strictly following guidelines using process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 export const DEFAULT_SYSTEM_INSTRUCTION = `
 ===================================================================
@@ -119,13 +110,13 @@ export const resetSystemInstruction = (): string => {
 export const generateAIResponse = async (
   prompt: string,
   contextText?: string,
-  modelName: string = 'gemini-2.5-flash',
+  modelName: string = 'gemini-3-flash-preview',
   // Default to fetching the dynamic instruction
   systemInstruction: string = getSystemInstruction()
 ): Promise<string> => {
   
-  if (!apiKey) {
-    return "Simulated Response: API Key is missing. Please configure process.env.API_KEY to see real Gemini responses. I would normally analyze your request based on the pedagogical master prompt.";
+  if (!process.env.API_KEY) {
+    return "API Key is missing. Please configure VITE_GEMINI_API_KEY in your .env file or VERCEL dashboard to enable EduNexus AI features.";
   }
 
   // Inject Context if available
@@ -144,19 +135,24 @@ export const generateAIResponse = async (
       Use the provided ACTIVE CURRICULUM CONTEXT as the primary source of truth. Tailor all output to the subject matter, grade level, and specific content found in the context.
       `;
   }
-  try {
-    const model = ai.getGenerativeModel({ model: modelName, systemInstruction, generationConfig: { temperature: 0.7 } });
-    const result = await model.generateContent(finalPrompt as any);
 
-    const candidates = result?.response?.candidates;
-    if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts) {
-      const text = candidates[0].content.parts.map((p: any) => p.text || '').join('');
-      return text || "No response text generated.";
-    }
-    return "No response text generated.";
-  } catch (error) {
+  try {
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: modelName,
+      contents: finalPrompt,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.7, 
+      }
+    });
+
+    return response.text || "No response text generated.";
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return "I encountered an error processing your pedagogical request. Please try again.";
+    if (error.message?.includes("API key not valid")) {
+        return "Your Gemini API key appears to be invalid. Please check your .env file.";
+    }
+    return "I encountered an error processing your pedagogical request. Please try again later.";
   }
 };
 
